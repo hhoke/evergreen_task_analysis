@@ -26,9 +26,9 @@ def main():
                     'finish_time',
                     ]
 
-    task_data = ETA.TaskTimes(IN_JSON,time_fields,'finish_time')
+    task_data = ETA.TaskTimes(IN_JSON,time_fields)
     
-    fig = timeline_by_finish(task_data.dataframe)
+    fig = timeline_by_finish(task_data.dataframe())
     fig.show()
     fig.write_html(OUT_HTML)
     print('figure saved at {}'.format(OUT_HTML))
