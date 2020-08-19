@@ -1,4 +1,4 @@
-This is a collection of scripts used to analyze task performance from evergreen's database.
+This is a collection of scripts used to analyze task performance data from evergreen's database.
 
 ## Current workflow:
 
