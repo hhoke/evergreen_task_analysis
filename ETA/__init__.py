@@ -5,9 +5,6 @@ import bisect
 import pandas as pd                                                                                                             
 import numpy as np                                                                                                              
 
-def hist():
-    ''' create and save histogram of times'''
-
 def convert_ISO_to_datetime(time_str):
     '''convert standart ISO time in tasks DB to a datetime.datetime object'''
     try:

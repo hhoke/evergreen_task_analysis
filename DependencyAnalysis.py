@@ -4,6 +4,8 @@ analysis of task dependencies
 '''
 import ETA
 import datetime
+import plotly.express as px
+import pandas as pd
 
 OUT_HTML = './rhel62_08-05-2020_TaskWaitsByFinishTime.html'
 IN_JSON = './rhel62_08-05-2020.json'
@@ -119,6 +121,16 @@ class DepTaskTimes(ETA.TaskTimes):
             total_tasks +=1
         return tasks_with_deps / total_tasks 
 
+    def tasks_with_fields(self,fields):
+        ''' generator that returns tasks containing field in fields'''
+        for task_id in self.tasks:
+            missing_field = False
+            for field in fields:
+                if field not in self.tasks[task_id]:
+                     missing_field = True 
+            if not missing_field:
+                yield self.tasks[task_id]
+
     def wait_blocked_totals(self):
         total_wait_time = datetime.timedelta(0)
         total_time_blocked = datetime.timedelta(0)
@@ -142,7 +154,40 @@ class DepTaskTimes(ETA.TaskTimes):
             task['latency_slowdown'] = proportion_of_ideal
         else:
             task['latency_slowdown'] = np.nan
- 
+
+    def generate_hist_wait_time(self):
+        ''' returns histogram of wait times''' 
+        return self.generate_hist('wait_time','scheduled_time','start_time')
+
+    def generate_hist_turnaround_time(self):
+        ''' returns histogram of turnaround times''' 
+        return self.generate_hist('turnaround_time','scheduled_time','finish_time')
+
+    def generate_hist_blocked_time(self):
+        ''' returns histogram of blocked times''' 
+        return self.generate_hist('blocked_time','scheduled_time','unblocked_time')
+
+    def generate_hist(self, title, start_key, end_key):
+        finish_times = []
+        total = datetime.timedelta(0)
+        total_hours = 0
+        total_count = 0
+        for task in self.tasks_with_fields([start_key,end_key]):
+            time_delta = task[end_key] - task[start_key]
+            seconds_in_minute = 60
+            minutes_in_hour = 60
+            time_delta_hour = (time_delta.seconds / seconds_in_minute) / minutes_in_hour
+            finish_times.append({title:time_delta_hour})
+            total_hours += time_delta_hour
+            total += time_delta
+            total_count += 1
+
+        df = pd.DataFrame(finish_times)
+        fig = px.histogram(df, x=title)
+        print(total/total_count)
+        print(total_hours/total_count)
+        return fig
+
 def chunked_mean_slowdown(time_chunked_tasks):
     ''' calculates average slowdown across each chunk given'''
     slowdowns = {}
@@ -160,9 +205,6 @@ def sample_trees():
     '''stub (min, max, 10%ile, 90th%ile, mean) displays 1 tree for each in a color-coded gantt chart'''
     pass
 
-def hist_total_wait_times():
-    ''' stub ''' 
-    pass
 
 
 def main():
@@ -175,6 +217,14 @@ def main():
 
     task_data = DepTaskTimes(IN_JSON, time_fields)
     task_data.wait_blocked_totals()
+    fig = task_data.generate_hist_wait_time()
+    fig.show()
+
+    fig = task_data.generate_hist_turnaround_time()
+    fig.show()
+
+    fig = task_data.generate_hist_blocked_time()
+    fig.show()
 
 if __name__ == '__main__':
     main()
