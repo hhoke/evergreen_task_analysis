@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 '''
-plots task waits by finish time. See example_plots/TaskWaitsByFinishTime.html for example of output.
+plots task waits by finish time.
 '''
 import plotly.express as px                                                                                                     
 import ETA
