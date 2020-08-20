@@ -8,6 +8,7 @@ verify_ssl = true
 [packages]
 plotly-express = "*"
 pandas = "*"
+numpy = "*"
 
 [requires]
 python_version = "3.7"

@@ -4,8 +4,10 @@ analysis of task dependencies
 '''
 import ETA
 import datetime
+import treelib
 import plotly.express as px
 import pandas as pd
+import numpy as np
 
 OUT_HTML = './rhel62_08-05-2020_TaskWaitsByFinishTime.html'
 IN_JSON = './rhel62_08-05-2020.json'
@@ -14,7 +16,7 @@ DISTROS = ['rhel62-large']
 class DepTaskTimes(ETA.TaskTimes):
     '''
     DepTaskTimes extends ETA.TaskTimes. It adds distro-filtering functionality,
-    along with advanced dependency-crawling functionality.
+    along with dependency-aware wait time analysis that calculates new fields.
     '''
 
     def __init__(self, in_json, time_fields):
@@ -24,20 +26,68 @@ class DepTaskTimes(ETA.TaskTimes):
         '''
         # due to the added functionality, 
         # this class requires a lot of different time fields.
-        required_fields = [ 'create_time',
+        required_time_fields = [ 'create_time',
                             'scheduled_time',
                             'start_time',
                             'finish_time',
                             ]
         required_fields_missing = []
-        for field in required_fields:
+        for field in required_time_fields:
             if field not in time_fields:
                 required_fields_missing.append(field)
         if required_fields_missing:
             raise ValueError("required fields missing: {}".format(required_fields_missing))
 
         super().__init__(in_json,time_fields)
-    
+
+    ##
+    # screen task data 
+
+    def tasks_with_fields(self,fields):
+        ''' generator that returns tasks containing field in fields'''
+        for task_id in self.tasks:
+            missing_field = False
+            for field in fields:
+                if field not in self.tasks[task_id]:
+                     missing_field = True 
+            if not missing_field:
+                yield self.tasks[task_id]
+
+    def screen_tasks_by_field(self, field, values):
+        ''' only returns tasks that match allowed values of field'''
+        tasks = {x:[] for x in values}
+        for task in self.tasks_with_fields:
+            if task[field] in values:
+               tasks[task[field]].append(task)
+        return tasks
+
+     def screen_task_by_distros(self, distros):
+        ''' screen tasks by distros, screen out tasks with broken/nonexistent dependency info
+        returns {distro:[tasks] for distro in distros}.
+
+        WILL SILENTLY return nothing if tasks have no distro field, 
+        validation should be done beforehand.
+
+        distros:
+            d = ['rhel62-large']
+            Used to filter out "protagonist" tasks from a larger dump of tasks from all distros.
+            This is useful when you only care about wait times for a couple of distros, but they
+            have dependencies from multiple distros.
+
+        '''
+        return self.screen_tasks_by_field('distro', distros)
+
+    def screen_task_by_builds(self, builds)
+        ''' return tasks that belong to specified builds, 
+        returns a dict of lists of tasks by build, one per build in builds
+
+        WILL SILENTLY return nothing if tasks have no build field, 
+        validation should be done beforehand.
+        '''
+        return self.screen_tasks_by_field('build', builds)
+
+    ##
+    # calculate additional fields to add to tasks
 
     def calculate_perfect_world_latency(self, task):
         ''' takes in a task and recursively determines the time to finish this task
@@ -90,23 +140,18 @@ class DepTaskTimes(ETA.TaskTimes):
                 return True
         return False
                  
-    def screen_task_by_distros(self, distros):
-        ''' screen tasks by distros, screen out tasks with broken/nonexistent dependency info
-        returns distro_tasks, which is a dict of lists of tasks in the distro
+    @staticmethod 
+    def calculate_latency_slowdown(task): 
+        ''' adds 'latency_slowdown' field to task '''
 
-        distro:
-            d = ['rhel62-large']
-            Used to filter out "protagonist" tasks from a larger dump of tasks from all distros.
-            This is useful when you only care about wait times for a couple of distros, but they
-            have dependencies from multiple distros.
+        proportion_of_ideal = (task['finish_time'] - task['create_time']) / task['perfect_world_latency']
+        if proportion_of_ideal > 0:
+            task['latency_slowdown'] = proportion_of_ideal
+        else:
+            task['latency_slowdown'] = np.nan
 
-        '''
-        distro_tasks = {x:[] for x in distros}
-        for _id in self.tasks:
-            task = self.tasks[_id]
-            if task['distro'] in distros:
-               distro_tasks[task['distro']].append(task)
-        return distro_tasks
+    ##
+    # display statistics
 
     def percent_tasks_with_deps(self):
         '''returns percent (out of 100) of tasks with nonempty dependency lists'''
@@ -121,17 +166,7 @@ class DepTaskTimes(ETA.TaskTimes):
             total_tasks +=1
         return tasks_with_deps / total_tasks 
 
-    def tasks_with_fields(self,fields):
-        ''' generator that returns tasks containing field in fields'''
-        for task_id in self.tasks:
-            missing_field = False
-            for field in fields:
-                if field not in self.tasks[task_id]:
-                     missing_field = True 
-            if not missing_field:
-                yield self.tasks[task_id]
-
-    def wait_blocked_totals(self):
+     def wait_blocked_totals(self):
         total_wait_time = datetime.timedelta(0)
         total_time_blocked = datetime.timedelta(0)
         total_time_unblocked_waiting = datetime.timedelta(0)
@@ -145,15 +180,8 @@ class DepTaskTimes(ETA.TaskTimes):
         print('{} total time blocked'.format(total_time_blocked))
         print('{} total time unblocked_waiting'.format(total_time_unblocked_waiting))
 
-    @staticmethod 
-    def calculate_latency_slowdown(task): 
-        ''' adds 'latency_slowdown' field to task '''
-
-        proportion_of_ideal = (task['finish_time'] - task['create_time']) / task['perfect_world_latency']
-        if proportion_of_ideal > 0:
-            task['latency_slowdown'] = proportion_of_ideal
-        else:
-            task['latency_slowdown'] = np.nan
+    ##
+    # figure generation 
 
     def generate_hist_wait_time(self):
         ''' returns histogram of wait times''' 
@@ -188,6 +216,8 @@ class DepTaskTimes(ETA.TaskTimes):
         print(total_hours/total_count)
         return fig
 
+    def generate_gantt_from_task(task):
+
 def chunked_mean_slowdown(time_chunked_tasks):
     ''' calculates average slowdown across each chunk given'''
     slowdowns = {}
@@ -201,11 +231,76 @@ def chunked_mean_slowdown(time_chunked_tasks):
         slowdowns[chunk] = latency_sum / perfect_world_latency_sum
     return slowdowns
 
-def sample_trees():
-    '''stub (min, max, 10%ile, 90th%ile, mean) displays 1 tree for each in a color-coded gantt chart'''
-    pass
+class DepGraph:
+    ''' contains data structures and methods for more directly manipulating DAG dependency graphs
+    something like graph-tools would be useful for heavy-duty graph analysis, but here we want to use
+    abstract indices for ease of lookup. Requires tasks dict with depends_on elements
+    '''
+    def __init__(self, tasks):
+        size = len(tasks)
+        self._depends_on_adjacency = np.zeros((size, size))
+        self._task_ids = tasks.keys()
+        # construct DAG adjacency matrix
+        for _id in tasks:
+            task = tasks[_id]
+            depends_on = [x['_id'] for x in task['depends_on']]
+            if depends_on:
+                for key in depends_on:
+                    i = self._task_ids.index(_id)
+                    j = self._task_ids.index(key)
+                    self._depends_on_adjacency[i][j] = 1
+
+        # transpose to get the adjacency matrix for dependents
+        # where all directed edges are reversed
+        self._dependent_of_adjacency = self._depends_on_adjacency.transpose()
 
 
+    def get_task_id_direct_depends_on(self, task_id):
+        ''' this is more a sanity check than anything'''
+        return self._get_task_id_adj(self._depends_on_adjacency, task_id)
+
+    def get_task_id_direct_dependent_of(self, task_id):
+        '''gets the reverse of depends_on'''
+        return self._get_task_id_adj(self._dependent_of_adjacency, task_id)
+
+    def _get_task_id_adj(self, adj, task_id):
+        i = self._task_ids.index(task_id)
+        direct_dependencies = []
+        for j in adj[i]:
+            if j == 1:
+                direct_dependencies.append(self._task_ids[j])
+        return direct_dependencies
+
+    def get_depends_on_task_id_tree(self, task_id):
+        ''' stub '''
+        pass
+
+    def get_dependent_of_task_id_tree(self, task_id):
+        '''breadth first search of dependents of task specified by task_id'''
+
+    def _bfs_task_id_adj(self, adj, task_id)
+
+        tree = treelib.Tree()
+        tree.create_node(task_id, task_id)
+        current_level = {_id:[task_id] for _id in self._get_task_id_adj(adj, task_id)}
+        while current_level:
+            next_level = {}
+            for child_id in current_level:
+                parent_id = current_level[child_id]
+                tree.create_node(child_id, child_id, parent=parent_id)
+                grandchildren = {_id:child_id for _id in self._get_task_id_adj(adj, child_id)} 
+
+
+            next_level = []
+            _id = current_level.pop()
+            parent = _id
+            next_level = {}
+            for item in next_leve
+            current_level = {task_id:_id for _id in self._get_task_id_adj(adj, task_id)}
+
+    def get_dependent_of_task_id_tree(self, task_id):
+        '''breadth first search of dependents of task specified by task_id'''
+        
 
 def main():
     time_fields = [ 'create_time',

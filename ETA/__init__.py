@@ -268,7 +268,8 @@ class ChunkTimes:
     def _fencepost_assigner_generator(self, find_fencepost):
         '''find_fencepost should be a function that takes a list and a value,
         and returns a value from the list. 
-        This curries that into a general fencepost assignment function.'''
+        This curries that into a general fencepost assignment function.
+        #TODO: remove unneeded closure'''
         def f(self, tasks, time_field):
             fencepost_dict = {x:[] for x in self.chunk_list}
             for task in tasks:
