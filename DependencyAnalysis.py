@@ -4,7 +4,6 @@ analysis of task dependencies
 '''
 import ETA
 import datetime
-import treelib
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -271,35 +270,13 @@ class DepGraph:
                 direct_dependencies.append(self._task_ids[j])
         return direct_dependencies
 
-    def get_depends_on_task_id_tree(self, task_id):
+    def get_depends_on_task_id_dag(self, task_id):
         ''' stub '''
         pass
 
-    def get_dependent_of_task_id_tree(self, task_id):
+    def get_dependent_of_task_id_dag(self, task_id):
         '''breadth first search of dependents of task specified by task_id'''
 
-    def _bfs_task_id_adj(self, adj, task_id)
-
-        tree = treelib.Tree()
-        tree.create_node(task_id, task_id)
-        current_level = {_id:[task_id] for _id in self._get_task_id_adj(adj, task_id)}
-        while current_level:
-            next_level = {}
-            for child_id in current_level:
-                parent_id = current_level[child_id]
-                tree.create_node(child_id, child_id, parent=parent_id)
-                grandchildren = {_id:child_id for _id in self._get_task_id_adj(adj, child_id)} 
-
-
-            next_level = []
-            _id = current_level.pop()
-            parent = _id
-            next_level = {}
-            for item in next_leve
-            current_level = {task_id:_id for _id in self._get_task_id_adj(adj, task_id)}
-
-    def get_dependent_of_task_id_tree(self, task_id):
-        '''breadth first search of dependents of task specified by task_id'''
         
 
 def main():
