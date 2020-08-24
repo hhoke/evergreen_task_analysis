@@ -2,8 +2,10 @@
 '''
 analysis of task dependencies
 '''
-import ETA
 import datetime
+import ETA
+import igraph
+import time
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -60,7 +62,7 @@ class DepTaskTimes(ETA.TaskTimes):
                tasks[task[field]].append(task)
         return tasks
 
-     def screen_task_by_distros(self, distros):
+    def screen_task_by_distros(self, distros):
         ''' screen tasks by distros, screen out tasks with broken/nonexistent dependency info
         returns {distro:[tasks] for distro in distros}.
 
@@ -76,7 +78,7 @@ class DepTaskTimes(ETA.TaskTimes):
         '''
         return self.screen_tasks_by_field('distro', distros)
 
-    def screen_task_by_builds(self, builds)
+    def screen_task_by_builds(self, builds):
         ''' return tasks that belong to specified builds, 
         returns a dict of lists of tasks by build, one per build in builds
 
@@ -152,7 +154,7 @@ class DepTaskTimes(ETA.TaskTimes):
     ##
     # display statistics
 
-    def percent_tasks_with_deps(self):
+    def display_percent_tasks_with_deps(self):
         '''returns percent (out of 100) of tasks with nonempty dependency lists'''
         total_tasks = 0
         tasks_with_deps = 0
@@ -165,7 +167,7 @@ class DepTaskTimes(ETA.TaskTimes):
             total_tasks +=1
         return tasks_with_deps / total_tasks 
 
-     def wait_blocked_totals(self):
+    def display_wait_blocked_totals(self):
         total_wait_time = datetime.timedelta(0)
         total_time_blocked = datetime.timedelta(0)
         total_time_unblocked_waiting = datetime.timedelta(0)
@@ -215,8 +217,6 @@ class DepTaskTimes(ETA.TaskTimes):
         print(total_hours/total_count)
         return fig
 
-    def generate_gantt_from_task(task):
-
 def chunked_mean_slowdown(time_chunked_tasks):
     ''' calculates average slowdown across each chunk given'''
     slowdowns = {}
@@ -230,6 +230,14 @@ def chunked_mean_slowdown(time_chunked_tasks):
         slowdowns[chunk] = latency_sum / perfect_world_latency_sum
     return slowdowns
 
+def generate_task_depends_on_gantt():
+
+    pass
+
+def generate_task_dependent_of_gantt():
+
+    pass
+
 class DepGraph:
     ''' contains data structures and methods for more directly manipulating DAG dependency graphs
     something like graph-tools would be useful for heavy-duty graph analysis, but here we want to use
@@ -238,20 +246,28 @@ class DepGraph:
     def __init__(self, tasks):
         size = len(tasks)
         self._depends_on_adjacency = np.zeros((size, size))
-        self._task_ids = tasks.keys()
+        self._task_ids = list(tasks.keys())
         # construct DAG adjacency matrix
+        start = time.time()
         for _id in tasks:
             task = tasks[_id]
             depends_on = [x['_id'] for x in task['depends_on']]
             if depends_on:
                 for key in depends_on:
-                    i = self._task_ids.index(_id)
-                    j = self._task_ids.index(key)
-                    self._depends_on_adjacency[i][j] = 1
+                    if key in self._task_ids:
+                        i = self._task_ids.index(_id)
+                        j = self._task_ids.index(key)
+                        self._depends_on_adjacency[i][j] = 1
+        runtime = time.time() - start
+        print('{} long'.format(runtime))
 
         # transpose to get the adjacency matrix for dependents
         # where all directed edges are reversed
         self._dependent_of_adjacency = self._depends_on_adjacency.transpose()
+
+        # convert to igraph for advanced graph algos and visualization
+        self._depends_on_graph = igraph.Graph.Adjacency(self._depends_on_adjacency.tolist())
+        self._depends_on_graph.vs['label'] = self._task_ids
 
 
     def get_task_id_direct_depends_on(self, task_id):
@@ -270,14 +286,42 @@ class DepGraph:
                 direct_dependencies.append(self._task_ids[j])
         return direct_dependencies
 
-    def get_depends_on_task_id_dag(self, task_id):
-        ''' stub '''
-        pass
+    def _neighborhood(self, direction, task_id):
+        vertex_id = self._task_ids.index(task_id)
+        # note: the longest path to any vertex goes through every vertex in the graph,
+        # hence order=len(self._task_ids)
+        vertex_list = self._depends_on_graph.neighborhood(vertex_id,len(self._task_ids),direction)
+        task_id_list = [self._task_ids[i] for i in vertex_list]
+        return task_id_list
+
+    def get_depends_on_task_id(self, task_id):
+        '''returns all tasks that the specified task depends on. 
+        In other words, returns all verticies of the depends_on graph reachable from
+        the vertex identified by task_id.'''
+        return self._neighborhood("out",task_id)
 
     def get_dependent_of_task_id_dag(self, task_id):
-        '''breadth first search of dependents of task specified by task_id'''
+        '''returns all tasks that is a dependent of the specified task. 
+        In other words, returns all verticies of the depends_on graph reachable from
+        the vertex identified by task_id.'''
+        return self._neighborhood("in",task_id)
 
+    def generate_depends_on_graph_diagram(self, task_ids=None):
+        '''returns an igraph plot of the depends_on subgraph formed by the vertices in task_ids,
+        or if task_ids is None(default), displays the entire graph. 
+        plot can be visualized with p.show()'''
+
+        if task_ids:
+            if isinstance(task_ids,str):
+                task_ids = [task_ids]
+            vertex_ids = [self._task_ids.index(task_id) for task_id in task_ids]
+            subgraph = self._depends_on_graph.induced_subgraph(vertex_ids)
+        else:
+            subgraph = self._depends_on_graph
+
+        p = igraph.plot(subgraph)
         
+        return p
 
 def main():
     time_fields = [ 'create_time',
@@ -288,7 +332,8 @@ def main():
                     ]
 
     task_data = DepTaskTimes(IN_JSON, time_fields)
-    task_data.wait_blocked_totals()
+    '''
+    task_data.display_wait_blocked_totals()
     fig = task_data.generate_hist_wait_time()
     fig.show()
 
@@ -297,6 +342,11 @@ def main():
 
     fig = task_data.generate_hist_blocked_time()
     fig.show()
+    '''
+    g = DepGraph(task_data.tasks)
+    p = g.generate_depends_on_graph_diagram('mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_compile_patch_c7a2fabced047bb9d2a368a471dbec8cd1853da3_5f29ceb91e2d173787faa39c_20_08_04_21_10_29')
+    p.show()
+
 
 if __name__ == '__main__':
     main()
