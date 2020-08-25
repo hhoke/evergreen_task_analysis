@@ -51,6 +51,8 @@ class TaskTimes:
                             'start_time',
                             'finish_time',
                             ]
+            TODO: include some kind of schema validation for fields like 'depends_on'
+            https://www.peterbe.com/plog/jsonschema-validate-10x-faster-in-python
             Contains the fields to be converted from string to datetime during ingestion
             
         '''

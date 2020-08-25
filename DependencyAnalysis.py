@@ -5,13 +5,14 @@ analysis of task dependencies
 import datetime
 import ETA
 import igraph
-import time
+import multiprocessing
 import plotly.express as px
 import pandas as pd
 import numpy as np
 
-OUT_HTML = './rhel62_08-05-2020_TaskWaitsByFinishTime.html'
+OUT_HTML = './shorty_TaskWaitsByFinishTime.html'
 IN_JSON = './rhel62_08-05-2020.json'
+#IN_JSON = './shorty.json'
 DISTROS = ['rhel62-large']
 
 class DepTaskTimes(ETA.TaskTimes):
@@ -247,50 +248,55 @@ class DepGraph:
         size = len(tasks)
         self._depends_on_adjacency = np.zeros((size, size))
         self._task_ids = list(tasks.keys())
+        task_list = list(tasks.values())
+
         # construct DAG adjacency matrix
-        start = time.time()
-        for _id in tasks:
-            task = tasks[_id]
-            depends_on = [x['_id'] for x in task['depends_on']]
-            if depends_on:
-                for key in depends_on:
-                    if key in self._task_ids:
-                        i = self._task_ids.index(_id)
-                        j = self._task_ids.index(key)
-                        self._depends_on_adjacency[i][j] = 1
-        runtime = time.time() - start
+        start = datetime.datetime.now()
+        array_size = size ** 2
+        # have to share this object through inheritance
+        global _shared_adj 
+        # default for signed short ('h') is 0
+        _shared_adj = multiprocessing.RawArray('h',array_size)
+
+        with multiprocessing.Pool() as pool:
+            pool.map(self._update_adjacent_vertices,task_list)
+        adj_array = np.array(_shared_adj)
+        reshaped_adj = np.reshape(adj_array, (size,size))
+        runtime = datetime.datetime.now() - start
         print('{} long'.format(runtime))
 
-        # transpose to get the adjacency matrix for dependents
-        # where all directed edges are reversed
-        self._dependent_of_adjacency = self._depends_on_adjacency.transpose()
-
         # convert to igraph for advanced graph algos and visualization
-        self._depends_on_graph = igraph.Graph.Adjacency(self._depends_on_adjacency.tolist())
+        self._depends_on_graph = igraph.Graph.Adjacency(reshaped_adj.tolist())
         self._depends_on_graph.vs['label'] = self._task_ids
 
+    def _update_adjacent_vertices(self, task):
+            
+        _id = task['_id']
+        depends_on = [x['_id'] for x in task['depends_on']]
+        if depends_on:
+            for key in depends_on:
+                if key in self._task_ids:
+                    i = self._task_ids.index(_id)
+                    j = self._task_ids.index(key)
+                    idx = i + j
+                    _shared_adj[idx] = 1
 
     def get_task_id_direct_depends_on(self, task_id):
         ''' this is more a sanity check than anything'''
-        return self._get_task_id_adj(self._depends_on_adjacency, task_id)
+        return _neighborhood("out", 1, task_id) 
 
     def get_task_id_direct_dependent_of(self, task_id):
         '''gets the reverse of depends_on'''
-        return self._get_task_id_adj(self._dependent_of_adjacency, task_id)
+        return _neighborhood("in", 1, task_id) 
 
-    def _get_task_id_adj(self, adj, task_id):
-        i = self._task_ids.index(task_id)
-        direct_dependencies = []
-        for j in adj[i]:
-            if j == 1:
-                direct_dependencies.append(self._task_ids[j])
-        return direct_dependencies
-
-    def _neighborhood(self, direction, task_id):
-        vertex_id = self._task_ids.index(task_id)
+    def _reachable(self, direction, task_id):
         # note: the longest path to any vertex goes through every vertex in the graph,
         # hence order=len(self._task_ids)
-        vertex_list = self._depends_on_graph.neighborhood(vertex_id,len(self._task_ids),direction)
+        return _neighborhood(direction, len(self._task_ids), task_id)
+
+    def _neighborhood(self, direction, order, task_id):
+        vertex_id = self._task_ids.index(task_id)
+        vertex_list = self._depends_on_graph.neighborhood(vertex_id,order,direction)
         task_id_list = [self._task_ids[i] for i in vertex_list]
         return task_id_list
 
@@ -298,13 +304,13 @@ class DepGraph:
         '''returns all tasks that the specified task depends on. 
         In other words, returns all verticies of the depends_on graph reachable from
         the vertex identified by task_id.'''
-        return self._neighborhood("out",task_id)
+        return self._reachable("out",task_id)
 
     def get_dependent_of_task_id_dag(self, task_id):
         '''returns all tasks that is a dependent of the specified task. 
         In other words, returns all verticies of the depends_on graph reachable from
         the vertex identified by task_id.'''
-        return self._neighborhood("in",task_id)
+        return self._reachable("in",task_id)
 
     def generate_depends_on_graph_diagram(self, task_ids=None):
         '''returns an igraph plot of the depends_on subgraph formed by the vertices in task_ids,
@@ -344,7 +350,7 @@ def main():
     fig.show()
     '''
     g = DepGraph(task_data.tasks)
-    p = g.generate_depends_on_graph_diagram('mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_compile_patch_c7a2fabced047bb9d2a368a471dbec8cd1853da3_5f29ceb91e2d173787faa39c_20_08_04_21_10_29')
+    p = g.generate_depends_on_graph_diagram(['mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_compile_patch_c7a2fabced047bb9d2a368a471dbec8cd1853da3_5f29ceb91e2d173787faa39c_20_08_04_21_10_29', "mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_integration_tests_replset_patch_c7a2fabced047bb9d2a368a471dbec8cd1853da3_5f29ceb91e2d173787faa39c_20_08_04_21_10_29"])
     p.show()
 
 
