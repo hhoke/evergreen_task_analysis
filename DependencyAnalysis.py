@@ -11,8 +11,9 @@ import pandas as pd
 import numpy as np
 
 OUT_HTML = './shorty_TaskWaitsByFinishTime.html'
-IN_JSON = './rhel62_08-05-2020.json'
+#IN_JSON = './rhel62_08-05-2020.json'
 #IN_JSON = './shorty.json'
+IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
 DISTROS = ['rhel62-large']
 
 class DepTaskTimes(ETA.TaskTimes):
@@ -257,17 +258,18 @@ class DepGraph:
         global _shared_adj 
         # default for signed short ('h') is 0
         _shared_adj = multiprocessing.RawArray('h',array_size)
-
-        with multiprocessing.Pool() as pool:
-            pool.map(self._update_adjacent_vertices,task_list)
+        #with multiprocessing.Pool() as pool:
+        #    pool.map(self._update_adjacent_vertices,task_list)
+        for task in task_list:
+            self._update_adjacent_vertices(task)
         adj_array = np.array(_shared_adj)
         reshaped_adj = np.reshape(adj_array, (size,size))
         runtime = datetime.datetime.now() - start
-        print('{} long'.format(runtime))
 
         # convert to igraph for advanced graph algos and visualization
         self._depends_on_graph = igraph.Graph.Adjacency(reshaped_adj.tolist())
-        self._depends_on_graph.vs['label'] = self._task_ids
+        self._depends_on_graph.vs['label'] = [x for x in range(size)]
+        print(
 
     def _update_adjacent_vertices(self, task):
             
@@ -350,7 +352,7 @@ def main():
     fig.show()
     '''
     g = DepGraph(task_data.tasks)
-    p = g.generate_depends_on_graph_diagram(['mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_compile_patch_c7a2fabced047bb9d2a368a471dbec8cd1853da3_5f29ceb91e2d173787faa39c_20_08_04_21_10_29', "mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_integration_tests_replset_patch_c7a2fabced047bb9d2a368a471dbec8cd1853da3_5f29ceb91e2d173787faa39c_20_08_04_21_10_29"])
+    p = g.generate_depends_on_graph_diagram()
     p.show()
 
 
