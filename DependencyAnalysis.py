@@ -217,12 +217,13 @@ class DepTaskTimes(ETA.TaskTimes):
         worst_waits = {}
         worst_wait_ids = {}
         for field_key in tasks_by_field:
-            worst_wait = datetime.timedelta(-1)
+            worst_wait = datetime.timedelta(0)
             worst_task_id = None
             for task in tasks_by_field[field_key]:
-                if not 'unblocked_wait_time' in task:
-                    continue
-                value = task['unblocked_wait_time']
+                if 'unblocked_wait_time' in task:
+                    value = task['unblocked_wait_time']
+                else:
+                    value = task['start_time'] - task['scheduled_time']
                 if value > worst_wait:
                     worst_wait = value
                     worst_task_id = task['_id']
@@ -233,8 +234,7 @@ class DepTaskTimes(ETA.TaskTimes):
         longest_waits_first = dict(sorted(worst_waits.items(), key=lambda item: item[1],reverse=True))
         for field in longest_waits_first:
             if field in worst_wait_ids:
-                print('{} {}'.format(worst_waits[field],field))
-                print('{}'.format(worst_wait_ids[field]))
+                print('{} {} {}'.format(worst_waits[field],field, worst_wait_ids[field]))
     ##
     # figure generation 
 
