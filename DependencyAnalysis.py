@@ -14,15 +14,14 @@ OUT_HTML = './WT_gantt.html'
 #IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
 IN_JSON = './2020_08_25.json'
 
-class DepTaskTimes(ETA.TaskTimes):
+class DepWaitTaskTimes(ETA.TaskTimes):
     '''
-    DepTaskTimes extends ETA.TaskTimes. It adds distro-filtering functionality,
-    along with dependency-aware wait time analysis that calculates new fields.
+    DepWaitTaskTimes extends ETA.TaskTimes. It adds dependency-aware wait time analysis that calculates new fields.
     '''
 
     def __init__(self, in_json, time_fields):
         '''
-        DepTaskTimes extends ETA.TaskTimes. It adds distro-filtering functionality,
+        DepWaitTaskTimes extends ETA.TaskTimes. It adds distro-filtering functionality,
         along with advanced dependency-crawling functionality.
         '''
         # due to the added functionality, 
@@ -40,72 +39,6 @@ class DepTaskTimes(ETA.TaskTimes):
             raise ValueError("required fields missing: {}".format(required_fields_missing))
 
         super().__init__(in_json,time_fields)
-
-    ##
-    # screen task data 
-
-    def tasks_with_fields(self,fields):
-        ''' generator that returns tasks containing field in fields'''
-        for task_id in self.tasks:
-            missing_field = False
-            for field in fields:
-                if field not in self.tasks[task_id]:
-                     missing_field = True 
-            if not missing_field:
-                yield self.tasks[task_id]
-
-    def screen_tasks_by_field(self, field, values=None):
-        ''' only returns tasks that match allowed values of field'''
-        tasks = {}
-        if values:  
-            tasks = {x:[] for x in values}
-        for task in self.tasks_with_fields([field]):
-            if values:
-                if task[field] in values:
-                   tasks[task[field]].append(task)
-            else:
-                if field in tasks:
-                   tasks[task[field]].append(task)
-                else:
-                   tasks[task[field]] = [task]
-        return tasks
-
-    def screen_task_by_distros(self, distros=None):
-        ''' screen tasks by distros, screen out tasks with broken/nonexistent dependency info
-        returns {distro:[tasks] for distro in distros}.
-
-        WILL SILENTLY return nothing if tasks have no distro field, 
-        validation should be done beforehand.
-
-        distros:
-            d = ['rhel62-large']
-            Used to filter out "protagonist" tasks from a larger dump of tasks from all distros.
-            This is useful when you only care about wait times for a couple of distros, but they
-            have dependencies from multiple distros.
-
-        '''
-        return self.screen_tasks_by_field('distro', distros)
-
-    def screen_task_by_build_variants(self, build_variants=None):
-        ''' return tasks that belong to specified build_variants, 
-        returns a dict of lists of tasks by build, one per build variant in build_variants
-
-        WILL SILENTLY return nothing if tasks have no build_id field, 
-        validation should be done beforehand.
-        '''
-        return self.screen_tasks_by_field('build_id', builds)
-
-    def screen_task_by_versions(self, versions=None):
-        ''' return tasks that belong to specified versions, 
-        returns a dict of lists of tasks by build, one per build in builds
-
-        WILL SILENTLY return nothing if tasks have no vesion field, 
-        validation should be done beforehand.
-        '''
-        return self.screen_tasks_by_field('version', versions)
-
-    def screen_task_by_host_id(self, host_ids=None):
-        return self.screen_tasks_by_field('host_id', host_ids)
 
     ##
     # calculate additional fields to add to tasks
@@ -142,6 +75,8 @@ class DepTaskTimes(ETA.TaskTimes):
     def calculate_task_unblocked_time(self, task):
         ''' finds last dependency to finish, and adds this finish time to task
         as "unblocked_time". Returns true if this operation is completed.
+        Also generates 'begin_wait' time, which is either unblocked time or scheduled time,
+        as appropriate.
         '''
         depends_on = task['depends_on']       
         # only add field if it is coherent to do so
@@ -158,15 +93,12 @@ class DepTaskTimes(ETA.TaskTimes):
             # only add field if it is coherent to do so
             if latest_finish != task['scheduled_time'] :
                 task['unblocked_time'] = latest_finish
+                task['begin_wait'] = latest_finish
                 return True
+        #if we're here, didn't set 'unblocked_time'
+        task['begin_wait'] = task['scheduled_time']
         return False
 
-    def calculate_times(self, title, start_key, end_key):
-
-        for task in self.tasks_with_fields([start_key,end_key]):
-            time_delta = task[end_key] - task[start_key]
-            task[title] = time_delta
-                 
     @staticmethod 
     def calculate_task_latency_slowdown(task): 
         ''' adds 'latency_slowdown' field to task '''
@@ -184,8 +116,7 @@ class DepTaskTimes(ETA.TaskTimes):
         '''returns percent (out of 100) of tasks with nonempty dependency lists'''
         total_tasks = 0
         tasks_with_deps = 0
-        for _id in self.tasks:
-            task = self.tasks[_id]
+        for task in self.get_tasks():
             if task['depends_on']:
                 tasks_with_deps += 1
             else:
@@ -194,11 +125,14 @@ class DepTaskTimes(ETA.TaskTimes):
         return tasks_with_deps / total_tasks 
 
     def display_wait_blocked_totals(self):
+        ''' display total time waiting, blocked, and unblocked waiting 
+        for the entire data set.
+        Has the side effect of calculating unblocked time, 
+        which creates 'begin_wait' and 'unblocked_time' fields'''
         total_wait_time = datetime.timedelta(0)
         total_time_blocked = datetime.timedelta(0)
         total_time_unblocked_waiting = datetime.timedelta(0)
-        for task_id in self.tasks:
-            task = self.tasks[task_id]
+        for task in self.get_tasks():
             if self.calculate_task_unblocked_time(task):
                 total_wait_time += task['start_time'] - task['scheduled_time']
                 total_time_blocked += task['unblocked_time'] - task['scheduled_time']
@@ -212,18 +146,14 @@ class DepTaskTimes(ETA.TaskTimes):
         This is inaccurate, as all tasks without dependencies are unblocked when they are scheduled.
         '''
 
-        self.calculate_times('unblocked_wait_time','unblocked_time','start_time')
-        tasks_by_field = self.screen_tasks_by_field(field)
+        tasks_by_field = self.bin_tasks_by_field(field)
         worst_waits = {}
         worst_wait_ids = {}
         for field_key in tasks_by_field:
             worst_wait = datetime.timedelta(0)
             worst_task_id = None
             for task in tasks_by_field[field_key]:
-                if 'unblocked_wait_time' in task:
-                    value = task['unblocked_wait_time']
-                else:
-                    value = task['start_time'] - task['scheduled_time']
+                value = task['start_time'] - task['begin_wait']
                 if value > worst_wait:
                     worst_wait = value
                     worst_task_id = task['_id']
@@ -238,9 +168,13 @@ class DepTaskTimes(ETA.TaskTimes):
     ##
     # figure generation 
 
-    def generate_hist_wait_time(self):
+    def generate_hist_raw_wait_time(self):
         ''' returns histogram of wait times''' 
-        return self.generate_hist('wait_time','scheduled_time','start_time')
+        return self.generate_hist('raw_wait_time','scheduled_time','start_time')
+    
+    def generate_hist_corrected_wait_time(self):
+        ''' returns histogram of wait times, corrected for dependencies''' 
+        return self.generate_hist('corrected_wait_time','scheduled_time','begin_wait')
 
     def generate_hist_turnaround_time(self):
         ''' returns histogram of turnaround times''' 
@@ -255,7 +189,7 @@ class DepTaskTimes(ETA.TaskTimes):
         total = datetime.timedelta(0)
         total_hours = 0
         total_count = 0
-        for task in self.tasks_with_fields([start_key,end_key]):
+        for task in self.get_tasks({start_key:[],end_key:[]}):
             time_delta = task[end_key] - task[start_key]
             seconds_in_minute = 60
             minutes_in_hour = 60
@@ -266,23 +200,11 @@ class DepTaskTimes(ETA.TaskTimes):
             total_count += 1
 
         df = pd.DataFrame(finish_times)
+        print(finish_times)
         fig = px.histogram(df, x=title)
         print(total/total_count)
         print(total_hours/total_count)
         return fig
-
-def chunked_mean_slowdown(time_chunked_tasks):
-    ''' calculates average slowdown across each chunk given'''
-    slowdowns = {}
-    for chunk in time_chunked_tasks:
-        tasks = time_chunked_tasks[chunk]
-        latency_sum = datetime.timedelta(0)
-        perfect_world_latency_sum = datetime.timedelta(0)
-        for task in tasks:
-            latency_sum += task['finish_time'] - task['create_time']
-            perfect_world_latency_sum += task['perfect_world_latency'] 
-        slowdowns[chunk] = latency_sum / perfect_world_latency_sum
-    return slowdowns
 
 def generate_task_depends_on_gantt():
 
@@ -295,7 +217,8 @@ def generate_task_dependent_of_gantt():
 class DepGraph:
     ''' contains data structures and methods for more directly manipulating DAG dependency graphs
     something like graph-tools would be useful for heavy-duty graph analysis, but here we want to use
-    abstract indices for ease of lookup. Requires tasks dict with depends_on elements
+    abstract indices for ease of lookup. Requires tasks dict with depends_on elements.
+    Main benefit is neighborhood analysis and more advanced graph algorithms and functionality.
     '''
     def __init__(self, tasks):
         size = len(tasks)
@@ -381,16 +304,13 @@ def main():
                     'finish_time',
                     ]
 
-    task_data = DepTaskTimes(IN_JSON, time_fields)
+    task_data = DepWaitTaskTimes(IN_JSON, time_fields)
     task_data.display_wait_blocked_totals()
-    #fig = task_data.generate_hist_wait_time()
-    #fig.show()
+    task_data.screen_by = {'field': 'distro', 'values': ['rhel62-small']}
+
+    fig = task_data.generate_hist_corrected_wait_time()
+    fig.show()
     task_data.display_worst_unblocked_wait_per_field('distro')
-    
-    # graph stuff
-
-    #g = DepGraph(task_data.tasks)
-
 
 if __name__ == '__main__':
     main()
