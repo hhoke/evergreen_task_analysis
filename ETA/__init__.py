@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import json                                                                                                                     
-import datetime  
 import bisect
+import datetime  
+import json                                                                                                                     
+import logging
 import pandas as pd                                                                                                             
 import numpy as np                                                                                                              
 
@@ -82,9 +83,9 @@ class TaskTimes:
                     field_ISO += datetime.timedelta(0,11)
                 tasks[_id][field] = field_ISO
         if bad_ids:
-            print("bad date, removing:")
+            logging.debug("bad date, removing:")
         for _id in bad_ids:
-            print(tasks[_id])
+            logging.debug(tasks[_id])
             del tasks[_id]
 
         return tasks

@@ -10,11 +10,9 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 
-OUT_HTML = './shorty_TaskWaitsByFinishTime.html'
-#IN_JSON = './rhel62_08-05-2020.json'
-#IN_JSON = './shorty.json'
-IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-DISTROS = ['rhel62-large']
+OUT_HTML = './WT_gantt.html'
+#IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
+IN_JSON = './2020_08_25.json'
 
 class DepTaskTimes(ETA.TaskTimes):
     '''
@@ -56,15 +54,23 @@ class DepTaskTimes(ETA.TaskTimes):
             if not missing_field:
                 yield self.tasks[task_id]
 
-    def screen_tasks_by_field(self, field, values):
+    def screen_tasks_by_field(self, field, values=None):
         ''' only returns tasks that match allowed values of field'''
-        tasks = {x:[] for x in values}
-        for task in self.tasks_with_fields:
-            if task[field] in values:
-               tasks[task[field]].append(task)
+        tasks = {}
+        if values:  
+            tasks = {x:[] for x in values}
+        for task in self.tasks_with_fields([field]):
+            if values:
+                if task[field] in values:
+                   tasks[task[field]].append(task)
+            else:
+                if field in tasks:
+                   tasks[task[field]].append(task)
+                else:
+                   tasks[task[field]] = [task]
         return tasks
 
-    def screen_task_by_distros(self, distros):
+    def screen_task_by_distros(self, distros=None):
         ''' screen tasks by distros, screen out tasks with broken/nonexistent dependency info
         returns {distro:[tasks] for distro in distros}.
 
@@ -80,19 +86,31 @@ class DepTaskTimes(ETA.TaskTimes):
         '''
         return self.screen_tasks_by_field('distro', distros)
 
-    def screen_task_by_builds(self, builds):
-        ''' return tasks that belong to specified builds, 
-        returns a dict of lists of tasks by build, one per build in builds
+    def screen_task_by_build_variants(self, build_variants=None):
+        ''' return tasks that belong to specified build_variants, 
+        returns a dict of lists of tasks by build, one per build variant in build_variants
 
-        WILL SILENTLY return nothing if tasks have no build field, 
+        WILL SILENTLY return nothing if tasks have no build_id field, 
         validation should be done beforehand.
         '''
-        return self.screen_tasks_by_field('build', builds)
+        return self.screen_tasks_by_field('build_id', builds)
+
+    def screen_task_by_versions(self, versions=None):
+        ''' return tasks that belong to specified versions, 
+        returns a dict of lists of tasks by build, one per build in builds
+
+        WILL SILENTLY return nothing if tasks have no vesion field, 
+        validation should be done beforehand.
+        '''
+        return self.screen_tasks_by_field('version', versions)
+
+    def screen_task_by_host_id(self, host_ids=None):
+        return self.screen_tasks_by_field('host_id', host_ids)
 
     ##
     # calculate additional fields to add to tasks
 
-    def calculate_perfect_world_latency(self, task):
+    def calculate_task_perfect_world_latency(self, task):
         ''' takes in a task and recursively determines the time to finish this task
         assuming the world is perfect, i.e., that every dependency task runs immediately
         and with infinitely scalable concurrent operation. It assumes task runtime will 
@@ -107,7 +125,7 @@ class DepTaskTimes(ETA.TaskTimes):
         else:
             #calculate it
             dependency_ids = [x['_id'] for x in task['depends_on']]
-            dependency_times = [calculate_perfect_world_latency(self.tasks.get(tid,'missingDep')) for tid in dependency_ids]
+            dependency_times = [calculate_task_perfect_world_latency(self.tasks.get(tid,'missingDep')) for tid in dependency_ids]
             run_time = task['finish_time'] - task['start_time']
             if dependency_times:
                 time_so_far = max(dependency_times)
@@ -121,7 +139,7 @@ class DepTaskTimes(ETA.TaskTimes):
             task['perfect_world_latency'] = total_time
             return total_time
 
-    def calculate_unblocked_time(self, task):
+    def calculate_task_unblocked_time(self, task):
         ''' finds last dependency to finish, and adds this finish time to task
         as "unblocked_time". Returns true if this operation is completed.
         '''
@@ -135,16 +153,22 @@ class DepTaskTimes(ETA.TaskTimes):
                 finish_time = False
                 if task_id in self.tasks:
                     finish_time = self.tasks[task_id]['finish_time']
-                if finish_time and latest_finish < finish_time:
+                if finish_time and latest_finish < finish_time and finish_time < task['start_time']:
                     latest_finish = finish_time
             # only add field if it is coherent to do so
-            if latest_finish != task['scheduled_time']:
+            if latest_finish != task['scheduled_time'] :
                 task['unblocked_time'] = latest_finish
                 return True
         return False
+
+    def calculate_times(self, title, start_key, end_key):
+
+        for task in self.tasks_with_fields([start_key,end_key]):
+            time_delta = task[end_key] - task[start_key]
+            task[title] = time_delta
                  
     @staticmethod 
-    def calculate_latency_slowdown(task): 
+    def calculate_task_latency_slowdown(task): 
         ''' adds 'latency_slowdown' field to task '''
 
         proportion_of_ideal = (task['finish_time'] - task['create_time']) / task['perfect_world_latency']
@@ -175,7 +199,7 @@ class DepTaskTimes(ETA.TaskTimes):
         total_time_unblocked_waiting = datetime.timedelta(0)
         for task_id in self.tasks:
             task = self.tasks[task_id]
-            if self.calculate_unblocked_time(task):
+            if self.calculate_task_unblocked_time(task):
                 total_wait_time += task['start_time'] - task['scheduled_time']
                 total_time_blocked += task['unblocked_time'] - task['scheduled_time']
                 total_time_unblocked_waiting += task['start_time'] - task['unblocked_time']
@@ -183,6 +207,34 @@ class DepTaskTimes(ETA.TaskTimes):
         print('{} total time blocked'.format(total_time_blocked))
         print('{} total time unblocked_waiting'.format(total_time_unblocked_waiting))
 
+    def display_worst_unblocked_wait_per_field(self, field):
+        ''' at present this only looks at unblocked wait time for tasks which have dependencies.
+        This is inaccurate, as all tasks without dependencies are unblocked when they are scheduled.
+        '''
+
+        self.calculate_times('unblocked_wait_time','unblocked_time','start_time')
+        tasks_by_field = self.screen_tasks_by_field(field)
+        worst_waits = {}
+        worst_wait_ids = {}
+        for field_key in tasks_by_field:
+            worst_wait = datetime.timedelta(-1)
+            worst_task_id = None
+            for task in tasks_by_field[field_key]:
+                if not 'unblocked_wait_time' in task:
+                    continue
+                value = task['unblocked_wait_time']
+                if value > worst_wait:
+                    worst_wait = value
+                    worst_task_id = task['_id']
+            if worst_task_id:
+                worst_waits[field_key] = worst_wait
+                worst_wait_ids[field_key] = worst_task_id 
+
+        longest_waits_first = dict(sorted(worst_waits.items(), key=lambda item: item[1],reverse=True))
+        for field in longest_waits_first:
+            if field in worst_wait_ids:
+                print('{} {}'.format(worst_waits[field],field))
+                print('{}'.format(worst_wait_ids[field]))
     ##
     # figure generation 
 
@@ -252,24 +304,14 @@ class DepGraph:
         task_list = list(tasks.values())
 
         # construct DAG adjacency matrix
-        start = datetime.datetime.now()
-        array_size = size ** 2
-        # have to share this object through inheritance
-        global _shared_adj 
-        # default for signed short ('h') is 0
-        _shared_adj = multiprocessing.RawArray('h',array_size)
-        #with multiprocessing.Pool() as pool:
-        #    pool.map(self._update_adjacent_vertices,task_list)
         for task in task_list:
             self._update_adjacent_vertices(task)
-        adj_array = np.array(_shared_adj)
-        reshaped_adj = np.reshape(adj_array, (size,size))
-        runtime = datetime.datetime.now() - start
 
         # convert to igraph for advanced graph algos and visualization
-        self._depends_on_graph = igraph.Graph.Adjacency(reshaped_adj.tolist())
+        self._depends_on_graph = igraph.Graph.Adjacency(self._depends_on_adjacency.tolist())
         self._depends_on_graph.vs['label'] = [x for x in range(size)]
-        print(
+        print([x for x in range(size)])
+        print(self._task_ids)
 
     def _update_adjacent_vertices(self, task):
             
@@ -280,8 +322,8 @@ class DepGraph:
                 if key in self._task_ids:
                     i = self._task_ids.index(_id)
                     j = self._task_ids.index(key)
-                    idx = i + j
-                    _shared_adj[idx] = 1
+                    print('{} depends on {}'.format(_id,key))
+                    self._depends_on_adjacency[i][j] = 1
 
     def get_task_id_direct_depends_on(self, task_id):
         ''' this is more a sanity check than anything'''
@@ -340,20 +382,14 @@ def main():
                     ]
 
     task_data = DepTaskTimes(IN_JSON, time_fields)
-    '''
     task_data.display_wait_blocked_totals()
-    fig = task_data.generate_hist_wait_time()
-    fig.show()
+    #fig = task_data.generate_hist_wait_time()
+    #fig.show()
+    task_data.display_worst_unblocked_wait_per_field('distro')
+    
+    # graph stuff
 
-    fig = task_data.generate_hist_turnaround_time()
-    fig.show()
-
-    fig = task_data.generate_hist_blocked_time()
-    fig.show()
-    '''
-    g = DepGraph(task_data.tasks)
-    p = g.generate_depends_on_graph_diagram()
-    p.show()
+    #g = DepGraph(task_data.tasks)
 
 
 if __name__ == '__main__':
