@@ -174,7 +174,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
     
     def generate_hist_corrected_wait_time(self):
         ''' returns histogram of wait times, corrected for dependencies''' 
-        return self.generate_hist('corrected_wait_time','scheduled_time','begin_wait')
+        return self.generate_hist('corrected_wait_time','begin_wait','start_time')
 
     def generate_hist_turnaround_time(self):
         ''' returns histogram of turnaround times''' 
@@ -189,7 +189,8 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         total = datetime.timedelta(0)
         total_hours = 0
         total_count = 0
-        for task in self.get_tasks({start_key:[],end_key:[]}):
+        first_time = True 
+        for task in self.get_tasks({start_key:[],end_key:[]},mode='polite_merge'):
             time_delta = task[end_key] - task[start_key]
             seconds_in_minute = 60
             minutes_in_hour = 60
@@ -198,12 +199,15 @@ class DepWaitTaskTimes(ETA.TaskTimes):
             total_hours += time_delta_hour
             total += time_delta
             total_count += 1
+            if first_time:
+                worst = {time_delta_hour:task}
+            if time_delta_hour > next(iter(worst)):
+                worst = {time_delta_hour:task}
+
+        print(worst)
 
         df = pd.DataFrame(finish_times)
-        print(finish_times)
         fig = px.histogram(df, x=title)
-        print(total/total_count)
-        print(total_hours/total_count)
         return fig
 
 def generate_task_depends_on_gantt():
@@ -306,9 +310,10 @@ def main():
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
     task_data.display_wait_blocked_totals()
-    task_data.screen_by = {'field': 'distro', 'values': ['rhel62-small']}
+    #task_data.screen_by = {'distro': ['rhel62-small']}
 
     fig = task_data.generate_hist_corrected_wait_time()
+    fig.update_layout(title = 'rhel62-small')
     fig.show()
     task_data.display_worst_unblocked_wait_per_field('distro')
 

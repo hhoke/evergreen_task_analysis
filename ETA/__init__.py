@@ -119,18 +119,40 @@ class TaskTimes:
         '''
         return pd.DataFrame(list(self.tasks.values()))
     
-    def get_tasks(self, adhoc_screen=None):
+    def get_tasks(self, adhoc_screen=None, mode='merge'):
         ''' generator that returns tasks according to self.screen_by attribute of the form {str:[]}.
         get_tasks()  will screen out all tasks without the fields in screen_by.keys().
         If the value of a key in screen_by is empty, all field values are allowed in tasks.
         If this value is set to a list, only tasks with field values matching the list will be returned.
 
-        adhoc_screen temporarily overrides default class screen_by
+        screen_modes:
+        'substitute': adhoc_screen temporarily overrides default screen_by completely
+        'polite_merge': adhoc_screen is added to default screen_by. 
+            For colliding keys, default takes precedence.
+        'merge': adhoc_screen is added to default screen_by.
+            For colliding keys, adhoc_screen takes precedence.
         '''
-        if adhoc_screen:
-            screen = adhoc_screen
+        if mode == 'polite_merge':
+            if adhoc_screen and self.screen_by:
+                screen = { **adhoc_screen, **self.screen_by } 
+            elif adhoc_screen:
+                screen = adhoc_screen
+            else:
+                screen = self.screen_by
+        elif mode == 'merge':
+            if adhoc_screen and self.screen_by:
+                screen = { **self.screen_by, **adhoc_screen} 
+            elif adhoc_screen:
+                screen = adhoc_screen
+            else:
+                screen = self.screen_by
+        elif mode == 'substitute':
+            if adhoc_screen:
+                screen = adhoc_screen  
+            else:
+                screen = self.screen_by
         else:
-            screen = self.screen_by
+            raise ValueError('unknown mode {}, allowed values are "merge", "polite_merge", "substitute"'.format(mode))
         for _id in self.tasks:
             task = self.tasks[_id] 
             invalid_field = False
