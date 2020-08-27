@@ -27,6 +27,11 @@ def main():
                     ]
 
     task_data = ETA.TaskTimes(IN_JSON,time_fields)
+
+    for _id in task_data.tasks:
+        task = task_data.tasks[_id]
+        # add eleven seconds to avoid plotly wierdness
+        task['finish_time' += datetime.timedelta(0,11)
     
     fig = generate_timeline_by_finish(task_data.dataframe())
     fig.show()

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import json                                                                                                                     
+
 import datetime  
-import bisect
+import json                                                                                                                     
+import logging
 import pandas as pd                                                                                                             
-import numpy as np                                                                                                              
 
 def convert_ISO_to_datetime(time_str):
     '''convert standart ISO time in tasks DB to a datetime.datetime object'''
@@ -13,7 +13,6 @@ def convert_ISO_to_datetime(time_str):
         time_object = datetime.datetime.strptime(time_str,'%Y-%m-%dT%H:%M:%SZ')
     return time_object
 
-SHIFT_LATER_FIELD = 'finish_time'
 BEGINNING_OF_TIME = datetime.datetime(2000, 1, 1, 0, 0)
 
 class TaskTimes:
@@ -24,6 +23,11 @@ class TaskTimes:
     time_fields: list of strings denoting acceptable time fields that all tasks have
 
     tasks: {_task_id:task_dict}
+    
+    screen_by: modifier for the central tasks iterator. Default is none, should be set to a dict.
+        TaskTime.get_tasks()  will screen out all tasks without the fields in screen_by.keys().
+        If the value of a key in screen_by is empty, all field values are allowed in tasks.
+        If this value is set to a list, only tasks with field values matching the list will be returned.
 
     Methods
     ---
@@ -31,6 +35,33 @@ class TaskTimes:
     
     dataframe: returns pandas dataframe with one task per row and task attributes as columns
 
+
+    >>> time_fields = ['create_time',
+    ...                 'scheduled_time',
+    ...                 'dispatch_time',
+    ...                 'start_time',
+    ...                 'finish_time',
+    ...                 ]
+    >>> TT = TaskTimes('./shorty.json', time_fields)
+    >>> for task in TT.get_tasks():
+    ...     print(task['_id'])
+    compile
+    1
+    2
+    3
+    >>> bins = TT.bin_tasks_by_field('distro')
+    >>> for b in bins:
+    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b]])) 
+    rhel62-large: ['compile', '2', '3']
+    rhel62-small: ['1']
+    >>> TT.screen_by = {'distro': ['rhel62-small']} 
+    >>> for task in TT.get_tasks():
+    ...     print(task['_id'])
+    1
+    >>> bins = TT.bin_tasks_by_field('distro')
+    >>> for b in bins:
+    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b]])) 
+    rhel62-small: ['1']
     '''
 
     def __init__(self, in_json, time_fields):
@@ -45,17 +76,15 @@ class TaskTimes:
             Path to a valid json file to be ingested
 
         time_fields:
-            time_fields = [ 'create_time',
-                            'scheduled_time',
-                            'dispatch_time',
-                            'start_time',
-                            'finish_time',
-                            ]
             Contains the fields to be converted from string to datetime during ingestion
+            TODO: include some kind of schema validation for fields like 'depends_on'
+            https://www.peterbe.com/plog/jsonschema-validate-10x-faster-in-python
+        screen_by: modifier for the central tasks iterator.
             
         '''
         self.time_fields = time_fields
         self.tasks = self.ingest_json(in_json)
+        self.screen_by = None
 
     def ingest_json(self,in_json):
 
@@ -75,14 +104,11 @@ class TaskTimes:
                     # bad date, remove
                     bad_ids.append(_id)
                     break
-                if SHIFT_LATER_FIELD == field:
-                    # add ten seconds to avoid plotly wierdness
-                    field_ISO += datetime.timedelta(0,11)
                 tasks[_id][field] = field_ISO
         if bad_ids:
-            print("bad date, removing:")
+            logging.debug("bad date, removing:")
         for _id in bad_ids:
-            print(tasks[_id])
+            logging.debug(tasks[_id])
             del tasks[_id]
 
         return tasks
@@ -92,200 +118,72 @@ class TaskTimes:
         dataframe at any point in analysis, after tasks has been modified
         '''
         return pd.DataFrame(list(self.tasks.values()))
+    
+    def get_tasks(self, adhoc_screen=None, mode='merge'):
+        ''' generator that returns tasks according to self.screen_by attribute of the form {str:[]}.
+        get_tasks()  will screen out all tasks without the fields in screen_by.keys().
+        If the value of a key in screen_by is empty, all field values are allowed in tasks.
+        If this value is set to a list, only tasks with field values matching the list will be returned.
 
-
-# stolen from https://docs.python.org/3/library/bisect.html
-
-def _find_le(a, x):
-    'Find rightmost value less than or equal to x'
-    i = bisect.bisect_right(a, x)
-    if i:
-        return a[i-1]
-    raise ValueError
-
-def _find_ge(a, x):
-    'Find leftmost value greater than or equal to x'
-    i = bisect.bisect_left(a, x)
-    if i != len(a):
-        return a[i]
-    raise ValueError
- 
-
-class ChunkTimes:
-    ''' ChunkTimes automatically creates a list of evenly-spaced datetime.datetime objects, 
-        strictly increasing,
-        starting with begin_time,
-        ending at or after end_time, before end_time + chunk.
-        
-        Attributes
-        ---
-        chunk is a datetime.timedelta object
-        begin_time and end_time are datetime.datetime objects.
-        chunk_list is a list of datetime.datetime objects
-
-        Methods
-        ---
-        __init__(self, begin_time, end_time, chunk=datetime.timedelta(minutes=5))
-
-            chunk is a datetime.timedelta object
-            begin_time and end_time are datetime.datetime objects.
-            chunk_list is a list of datetime.datetime objects
-
-            >>> end = datetime.datetime(2000, 1, 1, 0, 0)
-            >>> start = datetime.datetime(1999, 12, 31, 16, 0)
-            >>> chunk = datetime.timedelta(hours=4)
-            >>> willenium = ChunkTimes(start,end,chunk)
-            >>> willenium.chunk_list
-            [datetime.datetime(1999, 12, 31, 16, 0), datetime.datetime(1999, 12, 31, 20, 0), datetime.datetime(2000, 1, 1, 0, 0)]
-
-        index_tasks_before_chunktime(self, tasks, time_field='finish_time')
-
-            Takes in a list of tasks. 
-            Returns chunks dict where tasks are stored under a chunktime fencepost value
-            iff they fall before or at the fencepost value, but after the previous fencepost value
-            for all time t such that t0 < t <= t1, t is in list d[t1] where d is the returned dictionary
-            The time used is specified with the time_field key, 
-            as long as the value of that key is a datetime.datetime field in the task.
-
-            all task times must be later than the first fencepost in chunk_list and earlier than the last.
-
-            >>> tasks = [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}, 
-            ...         {'finish_time': datetime.datetime(1999, 12, 31, 22, 0)},
-            ...         {'finish_time': datetime.datetime(1999, 12, 31, 18, 0)}]
-            >>> too_early_tasks = [{'finish_time': datetime.datetime(1999, 12, 30, 20, 0)}, 
-            ...         {'finish_time': datetime.datetime(1999, 12, 31, 22, 0)},
-            ...         {'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}]
-            >>> too_late_tasks = [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}, 
-            ...         {'finish_time': datetime.datetime(1999, 12, 31, 22, 0)},
-            ...         {'finish_time': datetime.datetime(2001, 12, 31, 20, 0)}]
-            >>> working_chunks = willenium.index_tasks_before_chunktime(tasks)
-            >>> for item in working_chunks:
-            ...    print(item)
-            ...    print(working_chunks[item])
-            1999-12-31 16:00:00
-            []
-            1999-12-31 20:00:00
-            [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}, {'finish_time': datetime.datetime(1999, 12, 31, 18, 0)}]
-            2000-01-01 00:00:00
-            [{'finish_time': datetime.datetime(1999, 12, 31, 22, 0)}]
-            >>> try: 
-            ...    f = willenium.index_tasks_before_chunktime(too_late_tasks)
-            ... except ValueError:
-            ...     pass
-            ... else:
-            ...     print('should have failed')
-            ...     print(f)
-
-            >>> try: 
-            ...    f = willenium.index_tasks_before_chunktime(too_early_tasks)
-            ... except ValueError:
-            ...     pass
-            ... else:
-            ...     print('should have failed')
-            ...     print(f)
-
-       
-        index_tasks_after_chunktime(self, tasks, time_field='finish_time')
-            returns chunks dict where tasks are stored under a chunktime fencepost value
-            iff they fall at or after the fencepost value, but before the previous fencepost value
-            for all time t such that t1 <= t < t2, t is in list d[t1] where d is the returned dictionary.
-            The time used is specified with the time_field key, 
-            as long as the value of that key is a datetime.datetime field in the task
-            >>> working_chunks = willenium.index_tasks_after_chunktime(tasks)
-            >>> for item in working_chunks:
-            ...    print(item)
-            ...    print(working_chunks[item])
-            1999-12-31 16:00:00
-            [{'finish_time': datetime.datetime(1999, 12, 31, 18, 0)}]
-            1999-12-31 20:00:00
-            [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}, {'finish_time': datetime.datetime(1999, 12, 31, 22, 0)}]
-            2000-01-01 00:00:00
-            []
-            >>> try: 
-            ...    f = willenium.index_tasks_after_chunktime(too_early_tasks)
-            ... except ValueError:
-            ...     pass
-            ... else:
-            ...     print('should have failed')
-            ...     print(f)
-
-            >>> try: 
-            ...    f = willenium.index_tasks_after_chunktime(too_late_tasks)
-            ... except ValueError:
-            ...     pass
-            ... else:
-            ...     print('should have failed')
-            ...     print(f)
-
+        screen_modes:
+        'substitute': adhoc_screen temporarily overrides default screen_by completely
+        'polite_merge': adhoc_screen is added to default screen_by. 
+            For colliding keys, default takes precedence.
+        'merge': adhoc_screen is added to default screen_by.
+            For colliding keys, adhoc_screen takes precedence.
         '''
+        if mode == 'polite_merge':
+            if adhoc_screen and self.screen_by:
+                screen = { **adhoc_screen, **self.screen_by } 
+            elif adhoc_screen:
+                screen = adhoc_screen
+            else:
+                screen = self.screen_by
+        elif mode == 'merge':
+            if adhoc_screen and self.screen_by:
+                screen = { **self.screen_by, **adhoc_screen} 
+            elif adhoc_screen:
+                screen = adhoc_screen
+            else:
+                screen = self.screen_by
+        elif mode == 'substitute':
+            if adhoc_screen:
+                screen = adhoc_screen  
+            else:
+                screen = self.screen_by
+        else:
+            raise ValueError('unknown mode {}, allowed values are "merge", "polite_merge", "substitute"'.format(mode))
+        for _id in self.tasks:
+            task = self.tasks[_id] 
+            invalid_field = False
+            if screen:
+                for field in screen:
+                    if field not in task:
+                        invalid_field = True
+                        break
+                    elif screen[field]:
+                        if task[field] not in screen[field]:
+                            invalid_field = True
+                            break
+            if not invalid_field:
+                yield task
 
-    def __init__(self, begin_time, end_time, chunk=datetime.timedelta(minutes=5)):
-        ''' ChunkTimes provides a list of evenly-spaced datetime.datetime objects, 
-        strictly increasing,
-        starting with begin_time,
-        ending at or after end_time, before end_time + chunk.
-
-        chunk is a datetime.timedelta object
-        begin_time and end_time are datetime.datetime objects.
-        '''
-        self.begin_time = begin_time
-        self.end_time = end_time
-        self.chunk = chunk
-
-        self.chunk_list = []
-        current_chunk = begin_time
-        while current_chunk < end_time + self.chunk:
-            self.chunk_list.append(current_chunk)
-            current_chunk += self.chunk 
-        # modify end time
-        self.end_time = self.chunk_list[-1]
-
-    def index_tasks_before_chunktime(self, tasks, time_field='finish_time'):
-        ''' Takes in a list of tasks. 
-        Returns chunks dict where tasks are stored under a chunktime fencepost value
-        iff they fall before or at the fencepost value, but after the previous fencepost value
-        for all time t such that t0 < t <= t1, t is in list d[t1] where d is the returned dictionary.
-        The time used is specified with the time_field key, 
-        as long as the value of that key is a datetime.datetime field in the task.
-
-        All task times must be later than the first fencepost in chunk_list and earlier than the last.
-        '''
-
-        return self._fencepost_assigner_generator(_find_ge)(self, tasks, time_field)
-
-    def index_tasks_after_chunktime(self, tasks, time_field='finish_time'):
-        ''' returns chunks dict where tasks are stored under a chunktime fencepost value
-        iff they fall at or after the fencepost value, but before the previous fencepost value
-        for all time t such that t1 <= t < t2, t is in list d[t1] where d is the returned dictionary.
-        The time used is specified with the time_field key, 
-        as long as the value of that key is a datetime.datetime field in the task.
-
-        All task times must be later than the first fencepost in chunk_list and earlier than the last.
-        '''
-
-        return self._fencepost_assigner_generator(_find_le)(self, tasks, time_field)
-
-    def _fencepost_assigner_generator(self, find_fencepost):
-        '''find_fencepost should be a function that takes a list and a value,
-        and returns a value from the list. 
-        This curries that into a general fencepost assignment function.'''
-        def f(self, tasks, time_field):
-            fencepost_dict = {x:[] for x in self.chunk_list}
-            for task in tasks:
-                time_value = task[time_field]
-                self._check_in_bounds(time_value)
-                fencepost = find_fencepost(self.chunk_list, time_value)
-                fencepost_dict[fencepost].append(task)
-            return fencepost_dict
-        return f
-
-    def _check_in_bounds(self, item):
-        ''' checks if an item is between begin_time and end_time.
-        item should be a datetime.datetime object'''
-        if item < self.begin_time:
-            raise ValueError("{} is earlier than begin_time {}".format(item,self.begin_time))
-        elif self.end_time < item:
-            raise ValueError("{} is later than end_time {}".format(item,self.end_time))
+    def bin_tasks_by_field(self, field, values=None):
+        ''' instead of simply filtering tasks using a built in screen_by, 
+        returns tasks binned by allowed values of a given field.'''
+        tasks = {}
+        if values:  
+            tasks = {x:[] for x in values}
+        for task in self.get_tasks():
+            if values:
+                if task[field] in values:
+                   tasks[task[field]].append(task)
+            else:
+                if task[field] in tasks:
+                   tasks[task[field]].append(task)
+                else:
+                   tasks[task[field]] = [task]
+        return tasks
 
 def _test():
     import doctest
@@ -294,6 +192,7 @@ def _test():
         print('Doctests passed UwU')
     else:
         print('Doctests failed ;_;')
+        print('did you \'member to run from top level project dir?')
 
 if __name__ == '__main__':
     _test()
