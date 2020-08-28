@@ -113,13 +113,16 @@ class TaskTimes:
 
         return tasks
 
-    def dataframe(self):
+    def dataframe(self, task_generator=None):
         ''' this enables the return of the self.tasks dict in the form of a pandas 
         dataframe at any point in analysis, after tasks has been modified
         '''
-        return pd.DataFrame(list(self.tasks.values()))
+        if not task_generator:
+            task_generator = self.get_tasks()
+        screened_tasks = list(task_generator)
+        return pd.DataFrame(screened_tasks)
     
-    def get_tasks(self, adhoc_screen=None, mode='merge'):
+    def get_tasks(self, adhoc_screen=None, mode='polite_merge'):
         ''' generator that returns tasks according to self.screen_by attribute of the form {str:[]}.
         get_tasks()  will screen out all tasks without the fields in screen_by.keys().
         If the value of a key in screen_by is empty, all field values are allowed in tasks.
@@ -168,13 +171,15 @@ class TaskTimes:
             if not invalid_field:
                 yield task
 
-    def bin_tasks_by_field(self, field, values=None):
+    def bin_tasks_by_field(self, field, values=None, task_generator=None):
         ''' instead of simply filtering tasks using a built in screen_by, 
         returns tasks binned by allowed values of a given field.'''
+        if not task_generator:
+            task_generator = self.get_tasks()
         tasks = {}
         if values:  
             tasks = {x:[] for x in values}
-        for task in self.get_tasks():
+        for task in task_generator:
             if values:
                 if task[field] in values:
                    tasks[task[field]].append(task)

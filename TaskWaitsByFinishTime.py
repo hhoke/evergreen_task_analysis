@@ -2,15 +2,17 @@
 '''
 plots task waits by finish time.
 '''
+import datetime
 import plotly.express as px                                                                                                     
 import ETA
+import DependencyAnalysis
 
-OUT_HTML = './rhel62_08-05-2020_TaskWaitsByFinishTime.html'
-IN_JSON = './rhel62_08-05-2020.json'
+OUT_HTML = './rhel62_2020_08_26_TaskWaitsByFinishTime.html'
+IN_JSON = './2020_08_26.json'
 
-def generate_timeline_by_finish(df):
-    df_sorted = df.sort_values(by=['finish_time'])
-    fig = px.timeline(df_sorted, x_start="scheduled_time", x_end="finish_time") 
+def generate_timeline_by_endtime(df, start='scheduled_time', end='finish_time'):
+    df_sorted = df.sort_values(by=[end])
+    fig = px.timeline(df_sorted, x_start=start, x_end=end) 
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -26,14 +28,19 @@ def main():
                     'finish_time',
                     ]
 
-    task_data = ETA.TaskTimes(IN_JSON,time_fields)
+    task_data = DependencyAnalysis.DepWaitTaskTimes(IN_JSON,time_fields)
+    task_data.screen_by = {'distro': ['rhel62-small']}
+    for task in task_data.get_tasks():
+        # calculate begin_wait
+        task_data.calculate_task_unblocked_time(task)
 
-    for _id in task_data.tasks:
-        task = task_data.tasks[_id]
+    # have to do this as a second loop to avoid pollutint the unblock calculations
+    for task in task_data.get_tasks():
         # add eleven seconds to avoid plotly wierdness
-        task['finish_time' += datetime.timedelta(0,11)
-    
-    fig = generate_timeline_by_finish(task_data.dataframe())
+        task['finish_time'] += datetime.timedelta(0,11)
+
+    generator = task_data.get_tasks({'finish_time':[],'begin_wait':[]})
+    fig = generate_timeline_by_endtime(task_data.dataframe(generator),start='begin_wait')
     fig.show()
     fig.write_html(OUT_HTML)
     print('figure saved at {}'.format(OUT_HTML))

@@ -5,6 +5,7 @@ analysis of task dependencies
 import datetime
 import ETA
 import igraph
+import logging
 import multiprocessing
 import plotly.express as px
 import pandas as pd
@@ -12,7 +13,7 @@ import numpy as np
 
 OUT_HTML = './WT_gantt.html'
 #IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-IN_JSON = './2020_08_25.json'
+IN_JSON = './2020_08_26.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -80,6 +81,10 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         '''
         depends_on = task['depends_on']       
         # only add field if it is coherent to do so
+        if task['start_time'] < task['scheduled_time'] :
+            logging.debug('bad time, deleting {}'.format(task))
+            del task
+            return False
         if depends_on:
             # we only care about finish times after this job has been scheduled
             latest_finish = task['scheduled_time']
@@ -145,8 +150,8 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         ''' at present this only looks at unblocked wait time for tasks which have dependencies.
         This is inaccurate, as all tasks without dependencies are unblocked when they are scheduled.
         '''
-
-        tasks_by_field = self.bin_tasks_by_field(field)
+        generator = self.get_tasks({'start_time':[],'begin_wait':[]})
+        tasks_by_field = self.bin_tasks_by_field(field, task_generator=generator)
         worst_waits = {}
         worst_wait_ids = {}
         for field_key in tasks_by_field:
@@ -190,7 +195,8 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         total_hours = 0
         total_count = 0
         first_time = True 
-        for task in self.get_tasks({start_key:[],end_key:[]},mode='polite_merge'):
+        title = title + '(hours)'
+        for task in self.get_tasks({start_key:[],end_key:[]}):
             time_delta = task[end_key] - task[start_key]
             seconds_in_minute = 60
             minutes_in_hour = 60
@@ -201,11 +207,9 @@ class DepWaitTaskTimes(ETA.TaskTimes):
             total_count += 1
             if first_time:
                 worst = {time_delta_hour:task}
+                first_time = False
             if time_delta_hour > next(iter(worst)):
                 worst = {time_delta_hour:task}
-
-        print(worst)
-
         df = pd.DataFrame(finish_times)
         fig = px.histogram(df, x=title)
         return fig
@@ -310,9 +314,12 @@ def main():
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
     task_data.display_wait_blocked_totals()
-    #task_data.screen_by = {'distro': ['rhel62-small']}
+    task_data.screen_by = {'distro': ['rhel62-small']}
 
     fig = task_data.generate_hist_corrected_wait_time()
+    fig.update_layout(title = 'rhel62-small')
+    fig.show()
+    fig = task_data.generate_hist_raw_wait_time()
     fig.update_layout(title = 'rhel62-small')
     fig.show()
     task_data.display_worst_unblocked_wait_per_field('distro')
