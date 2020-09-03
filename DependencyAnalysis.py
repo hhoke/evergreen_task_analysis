@@ -13,7 +13,7 @@ import numpy as np
 
 OUT_HTML = './WT_gantt.html'
 #IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-IN_JSON = './2020_08_26.json'
+IN_JSON = './2020_08_28.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -82,8 +82,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         depends_on = task['depends_on']       
         # only add field if it is coherent to do so
         if task['start_time'] < task['scheduled_time'] :
-            logging.debug('bad time, deleting {}'.format(task))
-            del task
+            logging.debug('bad time for {}'.format(task))
             return False
         if depends_on:
             # we only care about finish times after this job has been scheduled
@@ -93,6 +92,9 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 finish_time = False
                 if task_id in self.tasks:
                     finish_time = self.tasks[task_id]['finish_time']
+                else:
+                    # incomplete information
+                    return False
                 if finish_time and latest_finish < finish_time and finish_time < task['start_time']:
                     latest_finish = finish_time
             # only add field if it is coherent to do so
@@ -314,13 +316,14 @@ def main():
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
     task_data.display_wait_blocked_totals()
-    task_data.screen_by = {'distro': ['rhel62-small']}
+    task_data.screen_by = {'distro': ['rhel62-large']}
 
     fig = task_data.generate_hist_corrected_wait_time()
-    fig.update_layout(title = 'rhel62-small')
+    fig.update_layout(title = 'rhel62-large')
     fig.show()
+    task_data.screen_by = {'distro': ['rhel62-large'],'begin_wait':[]}
     fig = task_data.generate_hist_raw_wait_time()
-    fig.update_layout(title = 'rhel62-small')
+    fig.update_layout(title = 'rhel62-large')
     fig.show()
     task_data.display_worst_unblocked_wait_per_field('distro')
 

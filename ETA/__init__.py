@@ -156,6 +156,7 @@ class TaskTimes:
                 screen = self.screen_by
         else:
             raise ValueError('unknown mode {}, allowed values are "merge", "polite_merge", "substitute"'.format(mode))
+        returned_none = True
         for _id in self.tasks:
             task = self.tasks[_id] 
             invalid_field = False
@@ -169,7 +170,14 @@ class TaskTimes:
                             invalid_field = True
                             break
             if not invalid_field:
+                if returned_none:
+                    returned_none = False
                 yield task
+        if returned_none:
+            logging.warning('Returned no task values for screen')
+            logging.warning(screen)
+            logging.warning('sample task')
+            logging.warning(task)
 
     def bin_tasks_by_field(self, field, values=None, task_generator=None):
         ''' instead of simply filtering tasks using a built in screen_by, 
