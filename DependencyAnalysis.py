@@ -139,7 +139,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 if _id in self.tasks:
                     finish_time = self.tasks[_id]['finish_time']
                     if finish_time > start_time:
-                        if self.tasks[_id]['execution']:
+                        if self.tasks[_id]['execution'] > 0 :
                             # is a second run, doesn't count
                             continue
                         counter += 1
