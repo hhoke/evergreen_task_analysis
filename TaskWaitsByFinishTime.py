@@ -7,12 +7,12 @@ import plotly.express as px
 import ETA
 import DependencyAnalysis
 
-OUT_HTML = './rhel62_2020_08_26_TaskWaitsByFinishTime.html'
-IN_JSON = './2020_08_26.json'
+OUT_HTML = './task_dep_disrespect_TaskWaitsByFinishTime.html'
+IN_JSON = './task_dependency_disrespect.json'
 
 def generate_timeline_by_endtime(df, start='scheduled_time', end='finish_time'):
     df_sorted = df.sort_values(by=[end])
-    fig = px.timeline(df_sorted, x_start=start, x_end=end) 
+    fig = px.timeline(df_sorted, x_start=start, x_end=end, y='_id') 
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -29,7 +29,6 @@ def main():
                     ]
 
     task_data = DependencyAnalysis.DepWaitTaskTimes(IN_JSON,time_fields)
-    task_data.screen_by = {'distro': ['rhel62-small']}
     for task in task_data.get_tasks():
         # calculate begin_wait
         task_data.calculate_task_unblocked_time(task)
