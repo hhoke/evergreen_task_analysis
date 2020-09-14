@@ -139,6 +139,9 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 if _id in self.tasks:
                     finish_time = self.tasks[_id]['finish_time']
                     if finish_time > start_time:
+                        if self.tasks[_id]['execution']:
+                            # is a second run, doesn't count
+                            continue
                         counter += 1
                         logging.warning('{} started before {} finished'.format(task['_id'],_id))
         logging.warning('{} tasks counted'.format(counter))
