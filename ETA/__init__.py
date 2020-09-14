@@ -158,6 +158,8 @@ class TaskTimes:
         else:
             raise ValueError('unknown mode {}, allowed values are "merge", "polite_merge", "substitute"'.format(mode))
         returned_none = True
+        if not self.tasks:
+            logging.error('tasks list is empty, check input json')
         for _id in self.tasks:
             task = self.tasks[_id] 
             invalid_field = False

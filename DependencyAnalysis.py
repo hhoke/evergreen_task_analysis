@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 OUT_HTML = './disrespect.html'
-IN_JSON = './task_dependency_disrespect.json'
+IN_JSON = './nondisplay_deps.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -26,9 +26,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         '''
         # due to the added functionality, 
         # this class requires a lot of different time fields.
-        required_time_fields = [ 'create_time',
-                            'scheduled_time',
-                            'start_time',
+        required_time_fields = ['start_time',
                             'finish_time',
                             ]
         required_fields_missing = []
@@ -129,6 +127,22 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 print(task)
             total_tasks +=1
         return tasks_with_deps / total_tasks 
+
+    def display_tasks_start_before_deps_end(self):
+        ''' displays message for every task that starts before one of 
+        the tasks it depends on finishes'''
+        counter = 0
+        for task in self.get_tasks():
+            start_time = task['start_time']
+            for dep in task['depends_on']:
+                _id = dep['_id']
+                if _id in self.tasks:
+                    finish_time = self.tasks[_id]['finish_time']
+                    if finish_time > start_time:
+                        counter += 1
+                        logging.warning('{} started before {} finished'.format(task['_id'],_id))
+        logging.warning('{} tasks counted'.format(counter))
+
 
     def display_wait_blocked_totals(self):
         ''' display total time waiting, blocked, and unblocked waiting 
@@ -306,17 +320,12 @@ class DepGraph:
         return p
 
 def main():
-    time_fields = [ 'create_time',
-                    'scheduled_time',
-                    'dispatch_time',
-                    'start_time',
+    time_fields = [ 'start_time',
                     'finish_time',
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
-    graph = DepGraph(task_data.tasks)
-
-    fig = graph.generate_depends_on_graph_diagram()
+    task_data.display_tasks_start_before_deps_end()
 
 
 
