@@ -7,8 +7,8 @@ import plotly.express as px
 import ETA
 import DependencyAnalysis
 
-OUT_HTML = './rhel62_2020_08_26_TaskWaitsByFinishTime.html'
-IN_JSON = './2020_08_26.json'
+OUT_HTML = './burstyPerf.html'
+IN_JSON = './burstyPerf.json'
 
 def generate_timeline_by_endtime(df, start='scheduled_time', end='finish_time'):
     df_sorted = df.sort_values(by=[end])
@@ -29,7 +29,6 @@ def main():
                     ]
 
     task_data = DependencyAnalysis.DepWaitTaskTimes(IN_JSON,time_fields)
-    task_data.screen_by = {'distro': ['rhel62-small']}
     for task in task_data.get_tasks():
         # calculate begin_wait
         task_data.calculate_task_unblocked_time(task)
@@ -39,8 +38,8 @@ def main():
         # add eleven seconds to avoid plotly wierdness
         task['finish_time'] += datetime.timedelta(0,11)
 
-    generator = task_data.get_tasks({'finish_time':[],'begin_wait':[]})
-    fig = generate_timeline_by_endtime(task_data.dataframe(generator),start='begin_wait')
+    generator = task_data.get_tasks({'finish_time':[],'scheduled_time':[]})
+    fig = generate_timeline_by_endtime(task_data.dataframe(generator),start='scheduled_time')
     fig.show()
     fig.write_html(OUT_HTML)
     print('figure saved at {}'.format(OUT_HTML))

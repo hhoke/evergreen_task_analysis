@@ -13,7 +13,7 @@ import numpy as np
 
 OUT_HTML = './WT_gantt.html'
 #IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-IN_JSON = './2020_08_28.json'
+IN_JSON = './task_json/burstyPerf.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -316,16 +316,14 @@ def main():
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
     task_data.display_wait_blocked_totals()
-    task_data.screen_by = {'distro': ['rhel62-large']}
+    task_data.screen_by = {'build_id': ['mongodb_mongo_v4.2_enterprise_suse12_64_220d72da13180652f4986bc65a0dd95966973dd0_20_09_14_17_52_50']}
 
     fig = task_data.generate_hist_corrected_wait_time()
-    fig.update_layout(title = 'rhel62-large')
     fig.show()
-    task_data.screen_by = {'distro': ['rhel62-large'],'begin_wait':[]}
-    fig = task_data.generate_hist_raw_wait_time()
-    fig.update_layout(title = 'rhel62-large')
-    fig.show()
-    task_data.display_worst_unblocked_wait_per_field('distro')
+
+    graph = DepGraph({x["_id"]:x for x in task_data.get_tasks()})
+    g = graph.generate_depends_on_graph_diagram()
+
 
 if __name__ == '__main__':
     main()
