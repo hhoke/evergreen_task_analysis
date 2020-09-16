@@ -7,8 +7,8 @@ import plotly.express as px
 import ETA
 import DependencyAnalysis
 
-OUT_HTML = './burstyPerf.html'
-IN_JSON = './burstyPerf.json'
+OUT_HTML = './burstyPerf_host.html'
+IN_JSON = './task_json/burstyPerf.json'
 
 def generate_timeline_by_endtime(df, start='scheduled_time', end='finish_time'):
     df_sorted = df.sort_values(by=[end])
@@ -19,6 +19,16 @@ def generate_timeline_by_endtime(df, start='scheduled_time', end='finish_time'):
     'paper_bgcolor': 'rgba(0, 0, 0, 0)',
     })
     return fig
+
+def generate_timeline_by_host(df, start='start_time', end='finish_time'):
+    fig = px.timeline(df, x_start=start, x_end=end, y="host_id") 
+    fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
+    fig.update_layout({
+    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+    'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+    })
+    return fig
+
 
 def main():
     time_fields = [ 'create_time',
@@ -38,8 +48,8 @@ def main():
         # add eleven seconds to avoid plotly wierdness
         task['finish_time'] += datetime.timedelta(0,11)
 
-    generator = task_data.get_tasks({'finish_time':[],'scheduled_time':[]})
-    fig = generate_timeline_by_endtime(task_data.dataframe(generator),start='scheduled_time')
+    generator = task_data.get_tasks({'finish_time':[],'start_time':[], 'host_id':['i-086c896ce0df09ca2']})
+    fig = generate_timeline_by_host(task_data.dataframe(generator))
     fig.show()
     fig.write_html(OUT_HTML)
     print('figure saved at {}'.format(OUT_HTML))

@@ -13,7 +13,7 @@ import numpy as np
 
 OUT_HTML = './WT_gantt.html'
 #IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-IN_JSON = './task_json/burstyPerf.json'
+IN_JSON = './mongodb_mongo_v4.2_enterprise_suse12_64_220d72da13180652f4986bc65a0dd95966973dd0_20_09_14_17_52_50.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -243,8 +243,8 @@ class DepGraph:
         # convert to igraph for advanced graph algos and visualization
         self._depends_on_graph = igraph.Graph.Adjacency(self._depends_on_adjacency.tolist())
         self._depends_on_graph.vs['label'] = [x for x in range(size)]
-        print([x for x in range(size)])
-        print(self._task_ids)
+        for i,x in enumerate(self._task_ids):
+            print('{} {}'.format(i,x))
 
     def _update_adjacent_vertices(self, task):
             
