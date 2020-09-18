@@ -243,8 +243,8 @@ class DepGraph:
         # convert to igraph for advanced graph algos and visualization
         self._depends_on_graph = igraph.Graph.Adjacency(self._depends_on_adjacency.tolist())
         self._depends_on_graph.vs['label'] = [x for x in range(size)]
-        print([x for x in range(size)])
-        print(self._task_ids)
+        for i,x in enumerate(self._task_ids):
+            print('{} {}'.format(i,x))
 
     def _update_adjacent_vertices(self, task):
             
