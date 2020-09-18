@@ -13,7 +13,7 @@ import numpy as np
 
 OUT_HTML = './WT_gantt.html'
 #IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-IN_JSON = './2020_08_28.json'
+IN_JSON = './17th_old_terminated.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -27,9 +27,8 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         '''
         # due to the added functionality, 
         # this class requires a lot of different time fields.
-        required_time_fields = [ 'create_time',
+        required_time_fields = [ 
                             'scheduled_time',
-                            'start_time',
                             'finish_time',
                             ]
         required_fields_missing = []
@@ -147,6 +146,15 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         print('{} total wait time'.format(total_wait_time))
         print('{} total time blocked'.format(total_time_blocked))
         print('{} total time unblocked_waiting'.format(total_time_unblocked_waiting))
+
+    def display_total_time_spent(self):
+        ''' intended to add up all the time spent on tasks that were eventually cancelled'''
+        total_spent_time = datetime.timedelta(0)
+        for task in self.get_tasks():
+            spent_time = task['finish_time'] - task['scheduled_time']
+            total_spent_time += spent_time
+        print('{} wasted by terminations'.format(total_spent_time))
+         
 
     def display_worst_unblocked_wait_per_field(self, field):
         ''' at present this only looks at unblocked wait time for tasks which have dependencies.
@@ -307,25 +315,14 @@ class DepGraph:
         return p
 
 def main():
-    time_fields = [ 'create_time',
+    time_fields = [ 
                     'scheduled_time',
-                    'dispatch_time',
-                    'start_time',
                     'finish_time',
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
-    task_data.display_wait_blocked_totals()
-    task_data.screen_by = {'distro': ['rhel62-large']}
+    task_data.display_total_time_spent()
 
-    fig = task_data.generate_hist_corrected_wait_time()
-    fig.update_layout(title = 'rhel62-large')
-    fig.show()
-    task_data.screen_by = {'distro': ['rhel62-large'],'begin_wait':[]}
-    fig = task_data.generate_hist_raw_wait_time()
-    fig.update_layout(title = 'rhel62-large')
-    fig.show()
-    task_data.display_worst_unblocked_wait_per_field('distro')
 
 if __name__ == '__main__':
     main()
