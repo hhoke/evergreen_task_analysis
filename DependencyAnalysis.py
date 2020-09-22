@@ -13,7 +13,7 @@ import numpy as np
 
 OUT_HTML = './WT_gantt.html'
 #IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-IN_JSON = './17th_old_terminated.json'
+IN_JSON = './18th_old_tasks_start.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -27,8 +27,9 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         '''
         # due to the added functionality, 
         # this class requires a lot of different time fields.
+        ## TODO: not really needed for ad-hoc functionality
         required_time_fields = [ 
-                            'scheduled_time',
+                            'start_time',
                             'finish_time',
                             ]
         required_fields_missing = []
@@ -151,7 +152,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         ''' intended to add up all the time spent on tasks that were eventually cancelled'''
         total_spent_time = datetime.timedelta(0)
         for task in self.get_tasks():
-            spent_time = task['finish_time'] - task['scheduled_time']
+            spent_time = task['finish_time'] - task['start_time']
             total_spent_time += spent_time
         print('{} wasted by terminations'.format(total_spent_time))
          
@@ -316,7 +317,7 @@ class DepGraph:
 
 def main():
     time_fields = [ 
-                    'scheduled_time',
+                    'start_time',
                     'finish_time',
                     ]
 
