@@ -13,7 +13,7 @@ import numpy as np
 
 OUT_HTML = './WT_gantt.html'
 #IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-IN_JSON = './mongodb_mongo_v4.2_enterprise_suse12_64_220d72da13180652f4986bc65a0dd95966973dd0_20_09_14_17_52_50.json'
+IN_JSON = './sept21rhel62small.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -94,6 +94,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                     finish_time = self.tasks[task_id]['finish_time']
                 else:
                     # incomplete information
+                    logging.debug('incomplete info')
                     return False
                 if finish_time and latest_finish < finish_time and finish_time < task['start_time']:
                     latest_finish = finish_time
