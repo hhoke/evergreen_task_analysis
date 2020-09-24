@@ -6,13 +6,17 @@ import datetime
 import plotly.express as px                                                                                                     
 import pandas as pd
 import ETA
+import ETA.Chunks
 import DependencyAnalysis
 
 OUT_HTML = './twocolorsept21rhel62small.html'
 IN_JSON = './sept21rhel62small.json'
 
-def generate_timeline(df, start='scheduled_time', end='finish_time'):
-    fig = px.timeline(df, x_start=start, x_end=end) 
+def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
+    if not y:
+        fig = px.timeline(df, x_start=start, x_end=end) 
+    else:
+        fig = px.timeline(df, x_start=start, x_end=end, y=y) 
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -45,15 +49,17 @@ def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end=
     })
     return fig
 
-def generate_timeline_by_host(df, start='start_time', end='finish_time'):
-    fig = px.timeline(df, x_start=start, x_end=end, y="host_id") 
-    fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
-    fig.update_layout({
-    'plot_bgcolor': 'rgba(0, 0, 0, 0)',
-    'paper_bgcolor': 'rgba(0, 0, 0, 0)',
-    })
-    return fig
+def generate_chunked_running_task_count(task_data , chunks):
 
+    tasks = list(task_data.get_tasks({'start_time':[],'finish_time':[]}))
+    count_dict = chunks.index_task_on_chunktime_search(tasks)
+    count_list = []
+    for time in count_dict:
+        timepoint_dict = {'time': time, 'active_tasks': count_dict[time] }
+        count_list.append(timepoint_dict)
+
+    df = pd.DataFrame(count_list)
+    return px.line(df, x="time", y="active_tasks")
 
 def main():
     time_fields = [ 'create_time',
@@ -67,18 +73,12 @@ def main():
         # calculate begin_wait
         task_data.calculate_task_unblocked_time(task)
 
-    # have to do this as a second loop to avoid pollutint the unblock calculations
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
-    for task in generator:
-        # add eleven seconds to avoid plotly wierdness
-        task['start_time'] += datetime.timedelta(0,11)
-        task['finish_time'] += datetime.timedelta(0,22)
-
-
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
-    df = task_data.dataframe(generator)
-    fig = generate_twocolor_timeline(df)
-    fig.update_layout(title='begin_wait to start_time, ranked by scheduled_time')
+    start = datetime.datetime(2020, 9, 21, 0, 0)
+    end = datetime.datetime(2020, 9, 22, 0, 0)
+    chunk = datetime.timedelta(minutes=5)
+    chunks = ETA.Chunks.ChunkTimes(start,end,chunk)
+    fig = generate_chunked_running_task_count(task_data, chunks)
+    fig.update_layout(title='tasks running per 5min chunk, calculated post-hoc directly from tasks collection')
     fig.show()
     #fig.write_html(OUT_HTML)
     #print('figure saved at {}'.format(OUT_HTML))

@@ -137,6 +137,8 @@ class ChunkTimes:
         chunk is a datetime.timedelta object
         begin_time and end_time are datetime.datetime objects.
         '''
+        if end_time < begin_time :
+            raise ValueError('end_time is before begin_time')
         self.begin_time = begin_time
         self.end_time = end_time
         self.chunk = chunk
@@ -173,6 +175,53 @@ class ChunkTimes:
         '''
 
         return self._fencepost_assigner_generator(_find_le)(self, tasks, time_field)
+
+    def index_task_on_chunktime(self, tasks, start='start_time', end='finish_time'):
+        ''' returns chunks dict where count of tasks is stored under a chunktime fencepost value
+        for count of tasks active during the fencepost value, that is if the fencepost value is 
+        between start and end. The value of that key is a datetime.datetime field in the task.
+        tasks is an iterable of task dicts.
+
+        All task times must be later than the first fencepost in chunk_list and earlier than the last.
+        '''
+        active_tasks = [task['_id'] for task in tasks]
+        count_dict = {x:0 for x in self.chunk_list}
+        for post in count_dict:
+            for task in tasks:
+                if task['_id'] not in active_tasks:
+                    continue
+                if post < task[start]:
+                    continue
+                if task[end] < post:
+                    active_tasks.remove(task['_id'])
+                # so we know task[start] <= post <= task[end]
+                count_dict[post] += 1
+
+        return count_dict
+
+    def index_task_on_chunktime_search(self, tasks, start='start_time', end='finish_time'):
+        ''' returns chunks dict where count of tasks is stored under a chunktime fencepost value
+        for count of tasks active during the fencepost value, that is if the fencepost value is 
+        between start and end. The value of that key is a datetime.datetime field in the task.
+        tasks is an iterable of task dicts.
+
+        All task times must be later than the first fencepost in chunk_list and earlier than the last.
+        '''
+        counts = [0] * len(self.chunk_list)
+        for task in tasks:
+            leftmost_idx = bisect.bisect_left(self.chunk_list, task[start])
+            rightmost_idx = bisect.bisect_right(self.chunk_list, task[end])
+            active_idx = leftmost_idx
+            while active_idx < rightmost_idx:
+                counts[active_idx] += 1
+                active_idx += 1
+
+        count_dict = {}
+        for chunk in self.chunk_list:
+            count_dict[chunk] = counts.pop(0)
+        return count_dict
+
+
 
     def _fencepost_assigner_generator(self, find_fencepost):
         '''find_fencepost should be a function that takes a list and a value,
