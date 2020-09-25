@@ -12,6 +12,7 @@ import DependencyAnalysis
 OUT_HTML = './twocolorsept21rhel62small.html'
 IN_JSON = './sept21rhel62small.json'
 
+
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     if not y:
         fig = px.timeline(df, x_start=start, x_end=end) 
@@ -24,24 +25,23 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     })
     return fig
 
-def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end='finish_time', sortby='scheduled_time'):
+def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='scheduled_time'):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
     # create identical copy and introduce color field so you can still group on same y point
     df["color"] = 'Waiting'
-    df.rename(columns = {start:'start'}, inplace = True)
-    df.rename(columns = {middle:'end'}, inplace = True)
+    df['start'] = df_copy[start]
+    df['end'] = df_copy[middle]
 
     df_copy["color"] = 'Running'   
-    df_copy.rename(columns = {middle:'start'}, inplace = True)
-    df_copy.rename(columns = {end:'end'}, inplace = True)
+    df_copy['start'] = df_copy[middle]
+    df_copy['end'] = df_copy[end]
 
-    newdf = pd.concat([df, df_copy]).sort_index(kind='merge')
+    newdf = pd.concat([df, df_copy]).sort_values(by=[sortby], kind='merge')
+    print(newdf)
    
-    df_sorted = newdf 
-    print(df_sorted)
-    fig = px.timeline(df_sorted, x_start='start', x_end='end', color="color") 
+    fig = px.timeline(newdf, x_start='start', x_end='end', color="color") 
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -69,19 +69,26 @@ def main():
                     ]
 
     task_data = DependencyAnalysis.DepWaitTaskTimes(IN_JSON,time_fields)
+
     for task in task_data.get_tasks():
         # calculate begin_wait
         task_data.calculate_task_unblocked_time(task)
 
-    start = datetime.datetime(2020, 9, 21, 0, 0)
-    end = datetime.datetime(2020, 9, 22, 0, 0)
-    chunk = datetime.timedelta(minutes=5)
-    chunks = ETA.Chunks.ChunkTimes(start,end,chunk)
-    fig = generate_chunked_running_task_count(task_data, chunks)
-    fig.update_layout(title='tasks running per 5min chunk, calculated post-hoc directly from tasks collection')
+    # have to do this as a second loop to avoid polluting the unblock calculations
+    for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]}):
+        # add eleven seconds to avoid plotly wierdness
+        task['start_time'] += datetime.timedelta(0,11)
+        task['finish_time'] += datetime.timedelta(0,22)
+
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
+    df = task_data.dataframe(generator)
+    fig = generate_twocolor_timeline(df)
+    fig.update_layout(title='begin_wait to start_time, ranked by scheduled_time')
     fig.show()
     #fig.write_html(OUT_HTML)
     #print('figure saved at {}'.format(OUT_HTML))
+
+
 
 if __name__ == '__main__':
     main()
