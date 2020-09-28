@@ -51,7 +51,7 @@ class TaskTimes:
     3
     >>> bins = TT.bin_tasks_by_field('distro')
     >>> for b in bins:
-    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b]])) 
+    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b].values()])) 
     rhel62-large: ['compile', '2', '3']
     rhel62-small: ['1']
     >>> TT.screen_by = {'distro': ['rhel62-small']} 
@@ -60,7 +60,7 @@ class TaskTimes:
     1
     >>> bins = TT.bin_tasks_by_field('distro')
     >>> for b in bins:
-    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b]])) 
+    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b].values()])) 
     rhel62-small: ['1']
     '''
 
@@ -189,16 +189,16 @@ class TaskTimes:
             task_generator = self.get_tasks()
         tasks = {}
         if values:  
-            tasks = {x:[] for x in values}
+            tasks = {x:{} for x in values}
         for task in task_generator:
             if values:
                 if task[field] in values:
-                   tasks[task[field]].append(task)
+                   tasks[task[field]][task['_id']] = task
             else:
                 if task[field] in tasks:
-                   tasks[task[field]].append(task)
+                   tasks[task[field]][task['_id']] = task
                 else:
-                   tasks[task[field]] = [task]
+                   tasks[task[field]] = {task['_id']:task}
         return tasks
 
 def _test():

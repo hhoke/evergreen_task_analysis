@@ -12,8 +12,7 @@ import pandas as pd
 import numpy as np
 
 OUT_HTML = './WT_gantt.html'
-#IN_JSON = './wiredtiger_ubuntu1804_89a2e7e23a18fa5889e38a82d1fc7514ae8b7b93_20_05_06_04_57_20-tasks.json'
-IN_JSON = './sept21rhel62small.json'
+IN_JSON = './mms_53371359531c5a6725b32d22ffb0256eafc3994d.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -27,7 +26,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         '''
         # due to the added functionality, 
         # this class requires a lot of different time fields.
-        required_time_fields = [ 'create_time',
+        required_time_fields = [ 
                             'scheduled_time',
                             'start_time',
                             'finish_time',
@@ -42,7 +41,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         super().__init__(in_json,time_fields)
 
     ##
-    # calculate additional fields to add to tasks
+    # calculate additional fields and return value
 
     def calculate_task_perfect_world_latency(self, task):
         ''' takes in a task and recursively determines the time to finish this task
@@ -73,7 +72,10 @@ class DepWaitTaskTimes(ETA.TaskTimes):
             task['perfect_world_latency'] = total_time
             return total_time
 
-    def calculate_task_unblocked_time(self, task):
+    ##
+    # calculate additional fields to add to tasks and update value in task
+
+    def update_task_unblocked_time(self, task):
         ''' finds last dependency to finish, and adds this finish time to task
         as "unblocked_time". Returns true if this operation is completed.
         Also generates 'begin_wait' time, which is either unblocked time or scheduled time,
@@ -108,7 +110,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         return False
 
     @staticmethod 
-    def calculate_task_latency_slowdown(task): 
+    def update_task_latency_slowdown(task): 
         ''' adds 'latency_slowdown' field to task '''
 
         proportion_of_ideal = (task['finish_time'] - task['create_time']) / task['perfect_world_latency']
@@ -141,7 +143,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         total_time_blocked = datetime.timedelta(0)
         total_time_unblocked_waiting = datetime.timedelta(0)
         for task in self.get_tasks():
-            if self.calculate_task_unblocked_time(task):
+            if self.update_task_unblocked_time(task):
                 total_wait_time += task['start_time'] - task['scheduled_time']
                 total_time_blocked += task['unblocked_time'] - task['scheduled_time']
                 total_time_unblocked_waiting += task['start_time'] - task['unblocked_time']
@@ -160,7 +162,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         for field_key in tasks_by_field:
             worst_wait = datetime.timedelta(0)
             worst_task_id = None
-            for task in tasks_by_field[field_key]:
+            for task in tasks_by_field[field_key].values():
                 value = task['start_time'] - task['begin_wait']
                 if value > worst_wait:
                     worst_wait = value
@@ -173,6 +175,17 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         for field in longest_waits_first:
             if field in worst_wait_ids:
                 print('{} {} {}'.format(worst_waits[field],field, worst_wait_ids[field]))
+
+    def display_version_slowdown(self, versions=None):
+
+        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[]})
+
+        tasks_by_version = self.bin_tasks_by_field('version', values=versions, task_generator=generator)
+
+        for version in tasks_by_version:
+            version_tasks = tasks_by_version[version]
+            DepGraph.display_version_slowdown(version_tasks)
+
     ##
     # figure generation 
 
@@ -231,24 +244,26 @@ class DepGraph:
     abstract indices for ease of lookup. Requires tasks dict with depends_on elements.
     Main benefit is neighborhood analysis and more advanced graph algorithms and functionality.
     '''
-    def __init__(self, tasks):
+    def __init__(self, tasks, edge_weight_rule=None):
         size = len(tasks)
         self._depends_on_adjacency = np.zeros((size, size))
         self._task_ids = list(tasks.keys())
         task_list = list(tasks.values())
+        
+        self.edge_weight_rule = edge_weight_rule
 
         # construct DAG adjacency matrix
         for task in task_list:
             self._update_adjacent_vertices(task)
 
         # convert to igraph for advanced graph algos and visualization
-        self._depends_on_graph = igraph.Graph.Adjacency(self._depends_on_adjacency.tolist())
+        self._depends_on_graph = igraph.Graph.Weighted_Adjacency(self._depends_on_adjacency.tolist())
         self._depends_on_graph.vs['label'] = [x for x in range(size)]
         for i,x in enumerate(self._task_ids):
             print('{} {}'.format(i,x))
 
     def _update_adjacent_vertices(self, task):
-            
+         
         _id = task['_id']
         depends_on = [x['_id'] for x in task['depends_on']]
         if depends_on:
@@ -257,7 +272,11 @@ class DepGraph:
                     i = self._task_ids.index(_id)
                     j = self._task_ids.index(key)
                     print('{} depends on {}'.format(_id,key))
-                    self._depends_on_adjacency[i][j] = 1
+                    if self.edge_weight_rule:
+                        weight = self.edge_weight_rule(task)
+                    else:
+                        weight = 1
+                    self._depends_on_adjacency[i][j] = weight
 
     def get_task_id_direct_depends_on(self, task_id):
         ''' this is more a sanity check than anything'''
@@ -307,23 +326,86 @@ class DepGraph:
         
         return p
 
+    @classmethod
+    def display_version_slowdown(cls, tasks):
+        ''' calculates slowdown across version by finding the time a version would have taken to run if every task started
+        as soon as its dependencies were met or as soon as it was scheduled, if no dependencies exist. It assumes task runtime would
+        be the same.
+        '''
+        # determine all vertices with outdegree 0 and indegree 0 
+        task_ids_with_incoming_edges = set()
+        task_ids_with_outgoing_edges = set()
+        all_task_ids = set(tasks.keys())
+        # also determine the earliest scheduled_time and latest finish_time
+        earliest_scheduled = datetime.datetime.max
+        latest_finish = datetime.datetime.min
+        for task_id in tasks:
+            scheduled = tasks[task_id]['scheduled_time']
+            finish = tasks[task_id]['finish_time']
+            if latest_finish < finish : 
+                latest_finish = finish
+            if scheduled < earliest_scheduled:
+                earliest_scheduled = scheduled
+            if tasks[task_id]['depends_on']:
+                task_ids_with_outgoing_edges.add(task_id)
+                for dep_task_item in tasks[task_id]['depends_on']:
+                    dep_key = dep_task_item['_id']
+                    if dep_key not in all_task_ids:
+                        raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
+                    task_ids_with_incoming_edges.add(dep_key)
+        real_version_latency_dt = latest_finish - earliest_scheduled
+        real_version_latency_seconds = real_version_latency_dt.total_seconds()
+
+        task_ids_with_zero_indegree = all_task_ids - task_ids_with_incoming_edges
+        task_ids_with_zero_outdegree = all_task_ids - task_ids_with_outgoing_edges
+
+        # add dummy tasks as entry points for mincost algorithm
+        source_id = 'dummy_source'
+        source_vertex = {'_id': source_id, 'depends_on':[{'_id':x} for x in task_ids_with_zero_indegree]}
+        source_vertex['start_time'] = earliest_scheduled
+        source_vertex['finish_time'] = earliest_scheduled + datetime.timedelta(seconds=1)
+        source_vertex_id = len(tasks)
+        tasks[source_id] = source_vertex
+
+        target_id = 'dummy_target'
+        target_vertex = {'_id': target_id, 'depends_on':[]}
+        target_vertex['start_time'] = latest_finish 
+        target_vertex['finish_time'] = latest_finish + datetime.timedelta(seconds=1)
+        target_vertex_id = len(tasks)
+        tasks[target_id] = target_vertex 
+        for task_id in task_ids_with_zero_outdegree:
+            tasks[task_id]['depends_on'].append({'_id': target_id})
+
+        # call mincost_path
+
+        def calculate_maxcost_path_weight(some_task):
+            timedelta_weight = some_task['finish_time'] - some_task['start_time']
+            seconds =  timedelta_weight.total_seconds()
+            # invert to allow calculation of maxcost path by mincost-path algo
+            return -1 * seconds
+
+
+        depgraph = cls(tasks, calculate_maxcost_path_weight)
+        idealized_latency = depgraph._depends_on_graph.shortest_paths_dijkstra(source=source_vertex_id, target=target_vertex_id, weights='weight')
+        # have to multiply by -1 again to make the mincost path positive.
+        idealized_latency_seconds = idealized_latency[0][0] * -1
+        #p = igraph.plot(depgraph._depends_on_graph)
+
+        print('{} seconds or {} hours (actual)'.format(real_version_latency_seconds, real_version_latency_seconds/60**2))
+        print('{} seconds or {} hours (idealized)'.format(idealized_latency_seconds, idealized_latency_seconds/60**2))
+        print('{} is slowdown'.format(real_version_latency_seconds/idealized_latency_seconds))
+
 def main():
-    time_fields = [ 'create_time',
+    time_fields = [ 
                     'scheduled_time',
-                    'dispatch_time',
                     'start_time',
                     'finish_time',
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
-    task_data.display_wait_blocked_totals()
-    task_data.screen_by = {'build_id': ['mongodb_mongo_v4.2_enterprise_suse12_64_220d72da13180652f4986bc65a0dd95966973dd0_20_09_14_17_52_50']}
+    task_data.display_version_slowdown()
 
-    fig = task_data.generate_hist_corrected_wait_time()
-    fig.show()
 
-    graph = DepGraph({x["_id"]:x for x in task_data.get_tasks()})
-    g = graph.generate_depends_on_graph_diagram()
 
 
 if __name__ == '__main__':

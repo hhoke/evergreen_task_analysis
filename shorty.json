@@ -6,6 +6,7 @@
 		"scheduled_time" : "2020-08-05T11:20:03.484Z",
 		"start_time" : "2020-08-05T11:20:49.052Z",
 		"finish_time" : "2020-08-05T11:51:19.168Z",
+		"version" : "some version string",
 		"priority" : 0,
 		"distro" : "rhel62-large",
 		"depends_on" : [ ]
@@ -17,6 +18,7 @@
 		"scheduled_time" : "2020-08-05T11:20:03.484Z",
 		"start_time" : "2020-08-05T11:48:20.349Z",
 		"finish_time" : "2020-08-05T11:51:20.936Z",
+		"version" : "some version string",
 		"priority" : 0,
 		"distro" : "rhel62-small",
 		"depends_on" : [
@@ -35,6 +37,7 @@
 		"start_time" : "2020-08-05T11:48:29.321Z",
 		"finish_time" : "2020-08-05T11:51:24.833Z",
 		"priority" : 0,
+		"version" : "some version string",
 		"distro" : "rhel62-large",
 		"depends_on" : [
 			{
@@ -52,6 +55,7 @@
 		"start_time" : "2020-08-05T11:46:07.185Z",
 		"finish_time" : "2020-08-05T11:51:27.560Z",
 		"priority" : 0,
+		"version" : "some version string",
 		"distro" : "rhel62-large",
 		"depends_on" : [
 			{
@@ -69,6 +73,7 @@
 		"start_time" : "2020-08-05T11:49:15.727Z",
 		"finish_time" : "1970-08-05T11:51:29.037Z",
 		"priority" : 0,
+		"version" : "some version string",
 		"distro" : "rhel62-large",
 		"depends_on" : [
 			{
