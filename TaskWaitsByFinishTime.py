@@ -10,7 +10,7 @@ import ETA.Chunks
 import DependencyAnalysis
 
 OUT_HTML = './scheduled_order_mms_b501148c740bd81c273af3cb3da11ea2b4da69d9.html'
-IN_JSON = './mms_b501148c740bd81c273af3cb3da11ea2b4da69d9.json'
+IN_JSON = './task_json/mms_b501148c740bd81c273af3cb3da11ea2b4da69d9.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
@@ -25,7 +25,7 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     })
     return fig
 
-def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='scheduled_time'):
+def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end='finish_time', sortby='scheduled_time'):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
