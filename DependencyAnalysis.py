@@ -11,7 +11,7 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 
-IN_JSON = './mongodb_mongo_v4.4_8795ab9b5b2269203968d2061e286e2de45b4cad.json'
+IN_JSON = './mms_b501148c740bd81c273af3cb3da11ea2b4da69d9.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -402,10 +402,6 @@ class DepGraph:
         print('{} seconds or {} hours (idealized)'.format(idealized_latency_seconds, idealized_latency_seconds/60**2))
         print('{} is slowdown'.format(real_version_latency_seconds/idealized_latency_seconds))
 
-        shortest_path = depgraph.depends_on_graph.get_shortest_paths(source_vertex_id, to=target_vertex_id, weights='weight')
-        for vertex_id in shortest_path:
-
-
 def main():
     time_fields = [ 
                     'scheduled_time',
@@ -415,10 +411,6 @@ def main():
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
     task_data.display_version_slowdown()
-
-    fig.show()
-
-
 
 if __name__ == '__main__':
     main()

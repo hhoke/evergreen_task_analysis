@@ -9,8 +9,8 @@ import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
-OUT_HTML = './by_distro_mongodb_mongo_v4.4_8795ab9b5b2269203968d2061e286e2de45b4cad.html'
-IN_JSON = './mongodb_mongo_v4.4_8795ab9b5b2269203968d2061e286e2de45b4cad.json'
+OUT_HTML = './scheduled_order_mms_b501148c740bd81c273af3cb3da11ea2b4da69d9.html'
+IN_JSON = './mms_b501148c740bd81c273af3cb3da11ea2b4da69d9.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
@@ -25,7 +25,7 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     })
     return fig
 
-def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='distro'):
+def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='scheduled_time'):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
@@ -40,7 +40,7 @@ def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', 
 
     newdf = pd.concat([df, df_copy]).sort_values(by=[sortby], kind='merge')
    
-    hoverdata = [start, end, 'distro']
+    hoverdata = [start, end, 'distro', '_id']
     fig = px.timeline(newdf, x_start='start', x_end='end', color="color", hover_data=hoverdata) 
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
     fig.update_layout({
