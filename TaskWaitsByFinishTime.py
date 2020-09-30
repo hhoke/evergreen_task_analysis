@@ -9,8 +9,8 @@ import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
-OUT_HTML = './twocolorsept21rhel62small.html'
-IN_JSON = './sept21rhel62small.json'
+OUT_HTML = './by_distro_mongodb_mongo_v4.4_8795ab9b5b2269203968d2061e286e2de45b4cad.html'
+IN_JSON = './mongodb_mongo_v4.4_8795ab9b5b2269203968d2061e286e2de45b4cad.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
@@ -25,23 +25,23 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     })
     return fig
 
-def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='scheduled_time'):
+def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='distro'):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
     # create identical copy and introduce color field so you can still group on same y point
-    df["color"] = 'Waiting'
+    df["color"] = 'Waiting ({} to {})'.format(start,middle)
     df['start'] = df_copy[start]
     df['end'] = df_copy[middle]
 
-    df_copy["color"] = 'Running'   
+    df_copy["color"] = 'Running ({} to {})'.format(middle,end)
     df_copy['start'] = df_copy[middle]
     df_copy['end'] = df_copy[end]
 
     newdf = pd.concat([df, df_copy]).sort_values(by=[sortby], kind='merge')
-    print(newdf)
    
-    fig = px.timeline(newdf, x_start='start', x_end='end', color="color") 
+    hoverdata = [start, end, 'distro']
+    fig = px.timeline(newdf, x_start='start', x_end='end', color="color", hover_data=hoverdata) 
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -71,8 +71,8 @@ def main():
     task_data = DependencyAnalysis.DepWaitTaskTimes(IN_JSON,time_fields)
 
     for task in task_data.get_tasks():
-        # calculate begin_wait
-        task_data.calculate_task_unblocked_time(task)
+        # calculate begin_wait and update task with field
+        task_data.update_task_unblocked_time(task)
 
     # have to do this as a second loop to avoid polluting the unblock calculations
     for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]}):
@@ -83,10 +83,9 @@ def main():
     generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
-    fig.update_layout(title='begin_wait to start_time, ranked by scheduled_time')
     fig.show()
-    #fig.write_html(OUT_HTML)
-    #print('figure saved at {}'.format(OUT_HTML))
+    fig.write_html(OUT_HTML)
+    print('figure saved at {}'.format(OUT_HTML))
 
 
 

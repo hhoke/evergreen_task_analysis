@@ -11,8 +11,7 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 
-OUT_HTML = './WT_gantt.html'
-IN_JSON = './mms_53371359531c5a6725b32d22ffb0256eafc3994d.json'
+IN_JSON = './mongodb_mongo_v4.4_8795ab9b5b2269203968d2061e286e2de45b4cad.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -244,7 +243,9 @@ class DepGraph:
     abstract indices for ease of lookup. Requires tasks dict with depends_on elements.
     Main benefit is neighborhood analysis and more advanced graph algorithms and functionality.
     '''
-    def __init__(self, tasks, edge_weight_rule=None):
+    def __init__(self, tasks, edge_weight_rule=None, verbose=None):
+
+        self.verbose = verbose
         size = len(tasks)
         self._depends_on_adjacency = np.zeros((size, size))
         self._task_ids = list(tasks.keys())
@@ -257,10 +258,11 @@ class DepGraph:
             self._update_adjacent_vertices(task)
 
         # convert to igraph for advanced graph algos and visualization
-        self._depends_on_graph = igraph.Graph.Weighted_Adjacency(self._depends_on_adjacency.tolist())
-        self._depends_on_graph.vs['label'] = [x for x in range(size)]
-        for i,x in enumerate(self._task_ids):
-            print('{} {}'.format(i,x))
+        self.depends_on_graph = igraph.Graph.Weighted_Adjacency(self._depends_on_adjacency.tolist())
+        self.depends_on_graph.vs['label'] = [x for x in range(size)]
+        if self.verbose:
+            for i,x in enumerate(self._task_ids):
+                print('{} {}'.format(i,x))
 
     def _update_adjacent_vertices(self, task):
          
@@ -271,7 +273,8 @@ class DepGraph:
                 if key in self._task_ids:
                     i = self._task_ids.index(_id)
                     j = self._task_ids.index(key)
-                    print('{} depends on {}'.format(_id,key))
+                    if self.verbose:
+                        print('{} depends on {}'.format(_id,key))
                     if self.edge_weight_rule:
                         weight = self.edge_weight_rule(task)
                     else:
@@ -281,6 +284,9 @@ class DepGraph:
     def get_task_id_direct_depends_on(self, task_id):
         ''' this is more a sanity check than anything'''
         return _neighborhood("out", 1, task_id) 
+
+    def vertex_to_task_id(self, vertex_id):
+        return self._task_ids[vertex_id]
 
     def get_task_id_direct_dependent_of(self, task_id):
         '''gets the reverse of depends_on'''
@@ -293,7 +299,7 @@ class DepGraph:
 
     def _neighborhood(self, direction, order, task_id):
         vertex_id = self._task_ids.index(task_id)
-        vertex_list = self._depends_on_graph.neighborhood(vertex_id,order,direction)
+        vertex_list = self.depends_on_graph.neighborhood(vertex_id,order,direction)
         task_id_list = [self._task_ids[i] for i in vertex_list]
         return task_id_list
 
@@ -303,8 +309,8 @@ class DepGraph:
         the vertex identified by task_id.'''
         return self._reachable("out",task_id)
 
-    def get_dependent_of_task_id_dag(self, task_id):
-        '''returns all tasks that is a dependent of the specified task. 
+    def get_dependent_of_task_id(self, task_id):
+        '''returns every task that is a dependent of the specified task. 
         In other words, returns all verticies of the depends_on graph reachable from
         the vertex identified by task_id.'''
         return self._reachable("in",task_id)
@@ -318,9 +324,9 @@ class DepGraph:
             if isinstance(task_ids,str):
                 task_ids = [task_ids]
             vertex_ids = [self._task_ids.index(task_id) for task_id in task_ids]
-            subgraph = self._depends_on_graph.induced_subgraph(vertex_ids)
+            subgraph = self.depends_on_graph.induced_subgraph(vertex_ids)
         else:
-            subgraph = self._depends_on_graph
+            subgraph = self.depends_on_graph
 
         p = igraph.plot(subgraph)
         
@@ -354,6 +360,8 @@ class DepGraph:
                         raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
                     task_ids_with_incoming_edges.add(dep_key)
         real_version_latency_dt = latest_finish - earliest_scheduled
+        print('{} is latest finish'.format(latest_finish))
+        print('{} is earliest scheduled '.format(earliest_scheduled))
         real_version_latency_seconds = real_version_latency_dt.total_seconds()
 
         task_ids_with_zero_indegree = all_task_ids - task_ids_with_incoming_edges
@@ -384,16 +392,19 @@ class DepGraph:
             # invert to allow calculation of maxcost path by mincost-path algo
             return -1 * seconds
 
-
         depgraph = cls(tasks, calculate_maxcost_path_weight)
-        idealized_latency = depgraph._depends_on_graph.shortest_paths_dijkstra(source=source_vertex_id, target=target_vertex_id, weights='weight')
+        idealized_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(source=source_vertex_id, target=target_vertex_id, weights='weight')
         # have to multiply by -1 again to make the mincost path positive.
         idealized_latency_seconds = idealized_latency[0][0] * -1
-        #p = igraph.plot(depgraph._depends_on_graph)
+        #p = igraph.plot(depgraph.depends_on_graph)
 
         print('{} seconds or {} hours (actual)'.format(real_version_latency_seconds, real_version_latency_seconds/60**2))
         print('{} seconds or {} hours (idealized)'.format(idealized_latency_seconds, idealized_latency_seconds/60**2))
         print('{} is slowdown'.format(real_version_latency_seconds/idealized_latency_seconds))
+
+        shortest_path = depgraph.depends_on_graph.get_shortest_paths(source_vertex_id, to=target_vertex_id, weights='weight')
+        for vertex_id in shortest_path:
+
 
 def main():
     time_fields = [ 
@@ -405,6 +416,7 @@ def main():
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
     task_data.display_version_slowdown()
 
+    fig.show()
 
 
 
