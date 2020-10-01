@@ -11,6 +11,7 @@ pandas = "*"
 numpy = "*"
 python-igraph = "*"
 cairocffi = "*"
+requests = "*"
 
 [requires]
 python_version = "3.7"

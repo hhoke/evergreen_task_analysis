@@ -9,8 +9,8 @@ import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
-OUT_HTML = './scheduled_order_mms_b501148c740bd81c273af3cb3da11ea2b4da69d9.html'
-IN_JSON = './task_json/mms_b501148c740bd81c273af3cb3da11ea2b4da69d9.json'
+OUT_HTML = './scheduled_order_5f74c8117742ae3df0bf7442.html'
+IN_JSON = './5f74c8117742ae3df0bf7442.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
