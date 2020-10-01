@@ -2,8 +2,9 @@ rs.slaveOk();
 db = db.getSiblingDB('mci');
 function problemChild(){
 return db.tasks.aggregate([
-	{$match: {version: "mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc"}},
-	{$project: {finish_time: 1, start_time: 1, scheduled_time: 1, create_time:1, depends_on: 1, version:1, distro:1}},
+{$match: {finish_time: {$gt: ISODate("2020-08-27T20:00:00.000Z")}}},
+{$match: {finish_time: {$lt: ISODate("2020-08-28T18:00:00.000Z")}}},
+{$project: {create_time:1, dispatch_time:1, scheduled_time:1, start_time:1, finish_time:1, priority:1, distro:1, depends_on:1, version:1}},
 ])};
 //toArray makes this valid json for later loading into python
 var x = problemChild().toArray();
