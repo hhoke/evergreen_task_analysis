@@ -9,8 +9,8 @@ import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
-OUT_HTML = './scheduled_order_sept21rhel62small.html'
-IN_JSON = './task_json/sept21rhel62small.json'
+OUT_HTML = './scheduled_order_mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.html'
+IN_JSON = './mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
@@ -25,7 +25,7 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     })
     return fig
 
-def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end='finish_time', sortby='scheduled_time'):
+def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='scheduled_time'):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
@@ -40,7 +40,7 @@ def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end=
 
     newdf = pd.concat([df, df_copy]).sort_values(by=[sortby], kind='merge')
    
-    hoverdata = [start, end, '_id']
+    hoverdata = [start, end, 'distro', '_id']
     fig = px.timeline(newdf, x_start='start', x_end='end', color="color", hover_data=hoverdata) 
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
     fig.update_layout({
@@ -84,8 +84,8 @@ def main():
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
     fig.show()
-    fig.write_html(OUT_HTML)
-    print('figure saved at {}'.format(OUT_HTML))
+    #fig.write_html(OUT_HTML)
+    #print('figure saved at {}'.format(OUT_HTML))
 
 
 
