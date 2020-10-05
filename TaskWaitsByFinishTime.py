@@ -9,8 +9,8 @@ import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
-OUT_HTML = './scheduled_order_mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.html'
-IN_JSON = './mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.json'
+OUT_HTML = './scheduled_order_mongo_tools_private_dc7f1e81d0e2413c86774d12f06ac41b0e14dd25.html'
+IN_JSON = './2020aug28_all.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
@@ -80,7 +80,7 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':['mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29']})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
     fig.show()
