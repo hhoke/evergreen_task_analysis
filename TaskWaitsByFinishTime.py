@@ -25,7 +25,7 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     })
     return fig
 
-def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='scheduled_time'):
+def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end='finish_time', sortby='scheduled_time'):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
