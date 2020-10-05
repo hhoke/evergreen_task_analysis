@@ -9,8 +9,8 @@ import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
-OUT_HTML = './scheduled_order_mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.html'
-IN_JSON = './mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.json'
+OUT_HTML = './mms_170e5b497576b20b118c4befbaf83696f894a7dc.html'
+IN_JSON = './mms_170e5b497576b20b118c4befbaf83696f894a7dc.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
@@ -25,7 +25,7 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     })
     return fig
 
-def generate_twocolor_timeline(df, start='scheduled_time', middle='start_time', end='finish_time', sortby='scheduled_time'):
+def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end='finish_time', sortby='scheduled_time'):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
@@ -84,8 +84,8 @@ def main():
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
     fig.show()
-    #fig.write_html(OUT_HTML)
-    #print('figure saved at {}'.format(OUT_HTML))
+    fig.write_html(OUT_HTML)
+    print('figure saved at {}'.format(OUT_HTML))
 
 
 
