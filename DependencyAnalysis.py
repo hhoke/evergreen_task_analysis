@@ -11,6 +11,7 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 
+logging.basicConfig(level=logging.DEBUG)
 IN_JSON = './mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):

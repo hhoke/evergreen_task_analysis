@@ -3,12 +3,14 @@
 plots task waits by finish time.
 '''
 import datetime
+import logging
 import plotly.express as px                                                                                                     
 import pandas as pd
 import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
+logging.basicConfig(level=logging.DEBUG)
 OUT_HTML = './scheduled_order_mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.html'
 IN_JSON = './mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.json'
 
