@@ -107,10 +107,10 @@ class TaskTimes:
                 tasks[_id][field] = field_ISO
         if bad_ids:
             logging.debug("bad date, removing:")
+        logging.warning('{}/{} tasks had bad datetime values'.format(len(bad_ids),len(tasks)))
         for _id in bad_ids:
             logging.debug(tasks[_id])
             del tasks[_id]
-        logging.warning('{}/{} tasks had bad datetime values'.format(len(bad_ids),len(tasks)))
 
         return tasks
 

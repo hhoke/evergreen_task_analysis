@@ -10,9 +10,9 @@ import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
-logging.basicConfig(level=logging.DEBUG)
-OUT_HTML = './scheduled_order_mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.html'
-IN_JSON = './mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.json'
+logging.basicConfig(level=logging.INFO)
+OUT_HTML = './scheduled_order_mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29.html'
+IN_JSON = './mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
