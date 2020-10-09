@@ -341,12 +341,7 @@ class DepGraph:
         '''
         # make implicit dependency of generated on generator explicit
         generator_tasks = {}
-        # remove display tasks from dependency graph
-        display_task_ids = []
         for task_id in tasks:
-            if 'display_only' in tasks[task_id] and tasks[task_id]['display_only']:
-                display_task_ids.append(task_id)
-                continue
             if 'generated_by' in tasks[task_id]:
                 generated_by = tasks[task_id]['generated_by']
                 if generated_by in generator_tasks:
@@ -448,7 +443,6 @@ def main():
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
-    task_data.display_version_slowdown()
 
 if __name__ == '__main__':
     main()

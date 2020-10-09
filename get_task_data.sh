@@ -1,6 +1,6 @@
 #!/bin/bash
 set -xeou pipefail
-# This scipt is intended to download data from one of the mongodb secondary databases to the local machine
+# This script is intended to download data from one of the mongodb secondary databases to the local machine
 # it is not intended to be run in parallel
 # sample usage: ./get_task_data.sh && TaskWaitsByFinishTime.py
 
@@ -32,7 +32,7 @@ DB_HOST=evergreendb-1.10gen-mci.4085.mongodbdns.com
 JS_FILE=get_tasks.js
 
 SCP_FILE='/tmp/result.json'
-OUT_FILE=mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29.json
+OUT_FILE=foobar.json
 
 run_aggregation "$DB_HOST" "$JS_FILE" "$SCP_FILE"
 clean_results $(basename "$SCP_FILE") "$OUT_FILE"
