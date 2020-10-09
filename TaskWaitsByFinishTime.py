@@ -10,9 +10,9 @@ import ETA
 import ETA.Chunks
 import DependencyAnalysis
 
-logging.basicConfig(level=logging.DEBUG)
-OUT_HTML = './scheduled_order_mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.html'
-IN_JSON = './mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.json'
+logging.basicConfig(level=logging.INFO)
+OUT_HTML = './20201009_MariaReport/foobar.html'
+IN_JSON = './foobar.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
@@ -76,18 +76,11 @@ def main():
         # calculate begin_wait and update task with field
         task_data.update_task_unblocked_time(task)
 
-    # have to do this as a second loop to avoid polluting the unblock calculations
-    for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]}):
-        # add eleven seconds to avoid plotly wierdness
-        task['start_time'] += datetime.timedelta(0,11)
-        task['finish_time'] += datetime.timedelta(0,22)
-
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
-    df = task_data.dataframe(generator)
-    fig = generate_twocolor_timeline(df)
+    fig = task_data.generate_hist_corrected_wait_time()
+    fig.update_layout(title="foobar")
     fig.show()
-    #fig.write_html(OUT_HTML)
-    #print('figure saved at {}'.format(OUT_HTML))
+    fig.write_html(OUT_HTML)
+    print('figure saved at {}'.format(OUT_HTML))
 
 
 

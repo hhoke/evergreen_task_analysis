@@ -95,22 +95,27 @@ class TaskTimes:
         for item in j:
             _id = item['_id'] 
             tasks[_id] = item
-        bad_ids=[]
+        bad_time_ids=[]
+        # remove display tasks from dependency graph
+        display_task_ids = []
         for _id in tasks:
+            if 'display_only' in tasks[_id] and tasks[_id]['display_only']:
+                display_task_ids.append(_id)
+                continue
             for field in self.time_fields:
                 field_string = tasks[_id][field]
                 field_ISO = convert_ISO_to_datetime(field_string)
                 if field_ISO < BEGINNING_OF_TIME :
                     # bad date, remove
-                    bad_ids.append(_id)
+                    bad_time_ids.append(_id)
                     break
                 tasks[_id][field] = field_ISO
-        if bad_ids:
+        if bad_time_ids:
             logging.debug("bad date, removing:")
-        for _id in bad_ids:
+        logging.warning('{}/{} tasks had bad datetime values'.format(len(bad_time_ids),len(tasks)))
+        for _id in bad_time_ids + display_task_ids:
             logging.debug(tasks[_id])
             del tasks[_id]
-        logging.warning('{}/{} tasks had bad datetime values'.format(len(bad_ids),len(tasks)))
 
         return tasks
 

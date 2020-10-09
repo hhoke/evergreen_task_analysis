@@ -11,8 +11,8 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 
-logging.basicConfig(level=logging.DEBUG)
-IN_JSON = './mongodb_mongo_master_f4dd1b0c7ee46c6882ffe36f08c97099fda27fbc.json'
+logging.basicConfig(level=logging.INFO)
+IN_JSON = './mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -339,6 +339,32 @@ class DepGraph:
         as soon as its dependencies were met or as soon as it was scheduled, if no dependencies exist. It assumes task runtime would
         be the same.
         '''
+        # make implicit dependency of generated on generator explicit
+        generator_tasks = {}
+        for task_id in tasks:
+            if 'generated_by' in tasks[task_id]:
+                generated_by = tasks[task_id]['generated_by']
+                if generated_by in generator_tasks:
+                    generator_tasks[generated_by].append(task_id)
+                else:
+                    generator_tasks[generated_by] = [task_id]
+
+        for task_id in generator_tasks:
+            dummy_id = task_id + '_dummygen'
+            dummy_task = generator_tasks[task].copy()
+            dummy_task['finish_time'] = dummy_task['start_time']
+            dummy_task['_id'] = dummy_id
+            tasks[dummy_id] = dummy_task
+
+            dummy_dependency = {'_id':dummy_id}
+            for dependent_id in generator_tasks[task_id]:
+                if tasks[dependent_id]['depends_on']:
+                    tasks[dependent_id]['depends_on'].append(dummy_dependency)
+
+        # nothing depends on a display task, so this should suffice to remove the display task from dependency graph
+        for task_id in display_task_ids:
+            tasks[task_id]['depends_on'] = []
+
         # determine all vertices with outdegree 0 and indegree 0 
         task_ids_with_incoming_edges = set()
         task_ids_with_outgoing_edges = set()
@@ -360,6 +386,7 @@ class DepGraph:
                     if dep_key not in all_task_ids:
                         raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
                     task_ids_with_incoming_edges.add(dep_key)
+
         real_version_latency_dt = latest_finish - earliest_scheduled
         print('{} is latest finish'.format(latest_finish))
         print('{} is earliest scheduled '.format(earliest_scheduled))
@@ -383,7 +410,12 @@ class DepGraph:
         target_vertex_id = len(tasks)
         tasks[target_id] = target_vertex 
         for task_id in task_ids_with_zero_outdegree:
-            tasks[task_id]['depends_on'].append({'_id': target_id})
+            try:
+                tasks[task_id]['depends_on'].append({'_id': target_id})
+            except KeyError:
+                print(task_id)
+                print(tasks[task_id])
+                raise
 
         # call mincost_path
 
@@ -411,7 +443,6 @@ def main():
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
-    task_data.display_version_slowdown()
 
 if __name__ == '__main__':
     main()
