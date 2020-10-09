@@ -77,6 +77,7 @@ def main():
         task_data.update_task_unblocked_time(task)
 
     fig = task_data.generate_hist_corrected_wait_time()
+    fig.update_layout(title="foobar")
     fig.show()
     fig.write_html(OUT_HTML)
     print('figure saved at {}'.format(OUT_HTML))
