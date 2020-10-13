@@ -190,11 +190,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         slowdowns_by_version = {}
         for version in tasks_by_version:
             version_tasks = tasks_by_version[version]
-<<<<<<< HEAD
-            try:
-                DepGraph.display_version_slowdown(version_tasks)
 
-=======
             if len(version_tasks) < 100:
                 continue
             try:
@@ -205,7 +201,6 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         sorted_slowdowns_by_version  = {k: v for k, v in sorted(slowdowns_by_version.items(), key=lambda item: item[1])}
         for version in sorted_slowdowns_by_version:
             print('{}: {}'.format(sorted_slowdowns_by_version[version],version))
->>>>>>> EVG-13058
 
     ##
     # figure generation 
