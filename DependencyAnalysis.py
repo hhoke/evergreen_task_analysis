@@ -178,15 +178,34 @@ class DepWaitTaskTimes(ETA.TaskTimes):
 
     def display_version_slowdown(self, versions=None):
 
-        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[]})
+        allowed_distros = []
+        for distro in self.bin_tasks_by_field('distro'):
+            if 'power8' not in distro and 'zseries' not in distro:
+                if distro not in allowed_distros:
+                    allowed_distros.append(distro)
+
+        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[], 'distro':allowed_distros})
 
         tasks_by_version = self.bin_tasks_by_field('version', values=versions, task_generator=generator)
-
+        slowdowns_by_version = {}
         for version in tasks_by_version:
             version_tasks = tasks_by_version[version]
+<<<<<<< HEAD
             try:
                 DepGraph.display_version_slowdown(version_tasks)
 
+=======
+            if len(version_tasks) < 100:
+                continue
+            try:
+                slowdown = DepGraph.display_version_slowdown(version_tasks)
+                slowdowns_by_version[version] = slowdown
+            except ValueError:
+                continue
+        sorted_slowdowns_by_version  = {k: v for k, v in sorted(slowdowns_by_version.items(), key=lambda item: item[1])}
+        for version in sorted_slowdowns_by_version:
+            print('{}: {}'.format(sorted_slowdowns_by_version[version],version))
+>>>>>>> EVG-13058
 
     ##
     # figure generation 
@@ -427,11 +446,13 @@ class DepGraph:
         idealized_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(source=source_vertex_id, target=target_vertex_id, weights='weight')
         # have to multiply by -1 again to make the mincost path positive.
         idealized_latency_seconds = idealized_latency[0][0] * -1
-        #p = igraph.plot(depgraph.depends_on_graph)
 
+        slowdown = real_version_latency_seconds/idealized_latency_seconds
         print('{} seconds or {} hours (actual)'.format(real_version_latency_seconds, real_version_latency_seconds/60**2))
         print('{} seconds or {} hours (idealized)'.format(idealized_latency_seconds, idealized_latency_seconds/60**2))
         print('{} is slowdown'.format(real_version_latency_seconds/idealized_latency_seconds))
+
+        return slowdown
 
 def main():
     time_fields = [ 
