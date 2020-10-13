@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = './mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29.json'
+IN_JSON = './mms_recent.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -184,7 +184,9 @@ class DepWaitTaskTimes(ETA.TaskTimes):
 
         for version in tasks_by_version:
             version_tasks = tasks_by_version[version]
-            DepGraph.display_version_slowdown(version_tasks)
+            try:
+                DepGraph.display_version_slowdown(version_tasks)
+
 
     ##
     # figure generation 
@@ -361,10 +363,6 @@ class DepGraph:
                 if tasks[dependent_id]['depends_on']:
                     tasks[dependent_id]['depends_on'].append(dummy_dependency)
 
-        # nothing depends on a display task, so this should suffice to remove the display task from dependency graph
-        for task_id in display_task_ids:
-            tasks[task_id]['depends_on'] = []
-
         # determine all vertices with outdegree 0 and indegree 0 
         task_ids_with_incoming_edges = set()
         task_ids_with_outgoing_edges = set()
@@ -443,6 +441,7 @@ def main():
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
+    task_data.display_version_slowdown()
 
 if __name__ == '__main__':
     main()
