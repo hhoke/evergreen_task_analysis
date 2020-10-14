@@ -11,8 +11,8 @@ import ETA.Chunks
 import DependencyAnalysis
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './20201009_MariaReport/foobar.html'
-IN_JSON = './foobar.json'
+OUT_HTML = './5f6e8aed32f4170c212087f0.html'
+IN_JSON = './5f6e8aed32f4170c212087f0.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
@@ -82,7 +82,7 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':['mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29']})
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
     fig.show()
