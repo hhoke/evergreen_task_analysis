@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = './mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29.json'
+IN_JSON = './foobar.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -178,13 +178,29 @@ class DepWaitTaskTimes(ETA.TaskTimes):
 
     def display_version_slowdown(self, versions=None):
 
-        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[]})
+        allowed_distros = []
+        for distro in self.bin_tasks_by_field('distro'):
+            if 'power8' not in distro and 'zseries' not in distro:
+                if distro not in allowed_distros:
+                    allowed_distros.append(distro)
+
+        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[], 'distro':allowed_distros})
 
         tasks_by_version = self.bin_tasks_by_field('version', values=versions, task_generator=generator)
-
+        slowdowns_by_version = {}
         for version in tasks_by_version:
             version_tasks = tasks_by_version[version]
-            DepGraph.display_version_slowdown(version_tasks)
+
+            if len(version_tasks) < 100:
+                continue
+            try:
+                slowdown = DepGraph.display_version_slowdown(version_tasks)
+                slowdowns_by_version[version] = slowdown
+            except ValueError:
+                continue
+        sorted_slowdowns_by_version  = {k: v for k, v in sorted(slowdowns_by_version.items(), key=lambda item: item[1])}
+        for version in sorted_slowdowns_by_version:
+            print('{}: {}'.format(sorted_slowdowns_by_version[version],version))
 
     ##
     # figure generation 
@@ -361,10 +377,6 @@ class DepGraph:
                 if tasks[dependent_id]['depends_on']:
                     tasks[dependent_id]['depends_on'].append(dummy_dependency)
 
-        # nothing depends on a display task, so this should suffice to remove the display task from dependency graph
-        for task_id in display_task_ids:
-            tasks[task_id]['depends_on'] = []
-
         # determine all vertices with outdegree 0 and indegree 0 
         task_ids_with_incoming_edges = set()
         task_ids_with_outgoing_edges = set()
@@ -429,11 +441,13 @@ class DepGraph:
         idealized_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(source=source_vertex_id, target=target_vertex_id, weights='weight')
         # have to multiply by -1 again to make the mincost path positive.
         idealized_latency_seconds = idealized_latency[0][0] * -1
-        #p = igraph.plot(depgraph.depends_on_graph)
 
+        slowdown = real_version_latency_seconds/idealized_latency_seconds
         print('{} seconds or {} hours (actual)'.format(real_version_latency_seconds, real_version_latency_seconds/60**2))
         print('{} seconds or {} hours (idealized)'.format(idealized_latency_seconds, idealized_latency_seconds/60**2))
         print('{} is slowdown'.format(real_version_latency_seconds/idealized_latency_seconds))
+
+        return slowdown
 
 def main():
     time_fields = [ 
@@ -443,6 +457,7 @@ def main():
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
+    task_data.display_version_slowdown()
 
 if __name__ == '__main__':
     main()
