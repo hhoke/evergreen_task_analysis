@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = './mms_recent.json'
+IN_JSON = './foobar.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''

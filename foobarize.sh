@@ -15,7 +15,10 @@ function refoobarize {
 	replace_keyword "${1}" "foobar"
 }
 
-defoobarize $1
+# get replacement, and then remove from arg list
+k=$1
+shift
+defoobarize $k
 ./get_task_data.sh
-pipenv run ./TaskWaitsByFinishTime.py
-refoobarize $1
+$@
+refoobarize $k
