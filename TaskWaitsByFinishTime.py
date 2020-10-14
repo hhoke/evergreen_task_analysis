@@ -76,10 +76,6 @@ def main():
         # calculate begin_wait and update task with field
         task_data.update_task_unblocked_time(task)
 
-<<<<<<< HEAD
-    fig = task_data.generate_hist_corrected_wait_time()
-    fig.update_layout(title="foobar")
-=======
     # have to do this as a second loop to avoid polluting the unblock calculations
     for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]}):
         # add eleven seconds to avoid plotly wierdness
@@ -89,7 +85,6 @@ def main():
     generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':['mongodb_mongo_master_fbafa599da8f316e508d0a152586a77e85805c29']})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
->>>>>>> EVG-13058
     fig.show()
     fig.write_html(OUT_HTML)
     print('figure saved at {}'.format(OUT_HTML))
