@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 analysis of task dependencies
 '''
@@ -191,7 +191,8 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         for version in tasks_by_version:
             version_tasks = tasks_by_version[version]
 
-            if len(version_tasks) < 100:
+            # set according to particular question you want to answer
+            if len(version_tasks) < 1:
                 continue
             try:
                 slowdown = DepGraph.display_version_slowdown(version_tasks)

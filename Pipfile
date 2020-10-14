@@ -12,6 +12,8 @@ numpy = "*"
 python-igraph = "*"
 cairocffi = "*"
 requests = "*"
+pyyaml = "*"
+pyotp = "*"
 
 [requires]
 python_version = "3.7"
