@@ -4,7 +4,9 @@ set -xeou pipefail
 function replace_keyword {
 	keyword=$1
 	replacement=$2
-	perl -p -i -e "s/${keyword}/${replacement}/g" `grep -sl --exclude foobarize.sh ${keyword} * `
+	# dry run, fail if we find nothing
+	grep -sl --exclude foobarize.sh --exclude patches.py ${keyword} *
+	perl -p -i -e "s/${keyword}/${replacement}/g" grep -sl --exclude foobarize.sh --exclude patches.py ${keyword} *
 }
 
 function defoobarize {
