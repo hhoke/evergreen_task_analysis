@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = './foobar.json'
+IN_JSON = './task_json/2020aug28_all.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -382,16 +382,26 @@ class DepGraph:
         task_ids_with_incoming_edges = set()
         task_ids_with_outgoing_edges = set()
         all_task_ids = set(tasks.keys())
-        # also determine the earliest scheduled_time and latest finish_time
-        earliest_scheduled = datetime.datetime.max
-        latest_finish = datetime.datetime.min
+        # determine the set of time intervals in which at least one task was active. 
+        scheduled_intervals = []
+        #first, sort tasks by scheduled_time
+        tasks = {k: v for k, v in sorted(tasks.items(), key=lambda item: item[1]['scheduled_time'])}
+        intervals = []
+        min_scheduled = datetime.datetime.min 
+        max_finished = datetime.datetime.min
         for task_id in tasks:
+            # construct intervals
             scheduled = tasks[task_id]['scheduled_time']
             finish = tasks[task_id]['finish_time']
-            if latest_finish < finish : 
-                latest_finish = finish
-            if scheduled < earliest_scheduled:
-                earliest_scheduled = scheduled
+            if max_finished < scheduled :
+                # we have reached a new interval
+                if min_scheduled != datetime.datetime.min:
+                    intervals.append((min_scheduled,max_finished))
+                min_scheduled = scheduled
+                max_finished = finish
+            if max_finished < finished:
+                max_finished = finished
+
             if tasks[task_id]['depends_on']:
                 task_ids_with_outgoing_edges.add(task_id)
                 for dep_task_item in tasks[task_id]['depends_on']:
@@ -399,10 +409,10 @@ class DepGraph:
                     if dep_key not in all_task_ids:
                         raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
                     task_ids_with_incoming_edges.add(dep_key)
+        # get the last interval
+        intervals.append((min_scheduled,max_finished))
 
         real_version_latency_dt = latest_finish - earliest_scheduled
-        print('{} is latest finish'.format(latest_finish))
-        print('{} is earliest scheduled '.format(earliest_scheduled))
         real_version_latency_seconds = real_version_latency_dt.total_seconds()
 
         task_ids_with_zero_indegree = all_task_ids - task_ids_with_incoming_edges

@@ -11,8 +11,8 @@ import ETA.Chunks
 import DependencyAnalysis
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './5f6e8aed32f4170c212087f0.html'
-IN_JSON = './5f6e8aed32f4170c212087f0.json'
+OUT_HTML = './foobar.html'
+IN_JSON = './foobar.json'
 
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
