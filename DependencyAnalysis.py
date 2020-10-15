@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 
 logging.basicConfig(level=logging.DEBUG)
-IN_JSON = '5f494b5356234324e5ca5741.json'
+IN_JSON = '2020oct7_all.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -184,7 +184,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 if distro not in allowed_distros:
                     allowed_distros.append(distro)
 
-        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[], 'distro':allowed_distros, 'version':['5f494b5356234324e5ca5741']})
+        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[], 'distro':allowed_distros})
 
         tasks_by_version = self.bin_tasks_by_field('version', values=versions, task_generator=generator)
         slowdowns_by_version = {}
@@ -195,13 +195,8 @@ class DepWaitTaskTimes(ETA.TaskTimes):
             if len(version_tasks) < 1:
                 continue
             try:
-                slowdown, depgraph = DepGraph.display_version_slowdown(version_tasks)
+                slowdown, _ = DepGraph.display_version_slowdown(version_tasks)
                 slowdowns_by_version[version] = slowdown
-                fig = depgraph.generate_depends_on_graph_diagram()
-                paths = depgraph.depends_on_graph.get_all_simple_paths(9,10)
-                for path in paths:
-                    print(path)
-                    print(depgraph.path_cost(path))
             except ValueError:
                 continue
         sorted_slowdowns_by_version  = {k: v for k, v in sorted(slowdowns_by_version.items(), key=lambda item: item[1])}
@@ -266,7 +261,7 @@ class DepGraph:
     abstract indices for ease of lookup. Requires tasks dict with depends_on elements.
     Main benefit is neighborhood analysis and more advanced graph algorithms and functionality.
     '''
-    def __init__(self, tasks, edge_weight_rule=None, verbose=True):
+    def __init__(self, tasks, edge_weight_rule=None, verbose=False):
 
         self.verbose = verbose
         size = len(tasks)
@@ -485,8 +480,8 @@ class DepGraph:
 
         depgraph = cls(tasks, calculate_maxcost_path_weight)
         idealized_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(source=source_vertex_id, target=target_vertex_id, weights='weight')
-        # have to multiply by -1 again to make the mincost path positive.
-        idealized_latency_seconds = idealized_latency[0][0] * -1
+        # have to add 1 second to correct for dummy_source second-long runtime, then multiply by -1 again to make the mincost path positive.
+        idealized_latency_seconds = (idealized_latency[0][0] +1 ) * -1
 
         slowdown = real_version_latency_seconds/idealized_latency_seconds
         print('{} seconds or {} hours (actual)'.format(real_version_latency_seconds, real_version_latency_seconds/60**2))
