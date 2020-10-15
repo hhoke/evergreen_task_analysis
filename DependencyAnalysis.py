@@ -11,8 +11,8 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 
-logging.basicConfig(level=logging.INFO)
-IN_JSON = './task_json/2020aug28_all.json'
+logging.basicConfig(level=logging.DEBUG)
+IN_JSON = '5f494b5356234324e5ca5741.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -184,7 +184,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 if distro not in allowed_distros:
                     allowed_distros.append(distro)
 
-        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[], 'distro':allowed_distros})
+        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[], 'distro':allowed_distros, 'version':['5f494b5356234324e5ca5741']})
 
         tasks_by_version = self.bin_tasks_by_field('version', values=versions, task_generator=generator)
         slowdowns_by_version = {}
@@ -195,8 +195,13 @@ class DepWaitTaskTimes(ETA.TaskTimes):
             if len(version_tasks) < 1:
                 continue
             try:
-                slowdown = DepGraph.display_version_slowdown(version_tasks)
+                slowdown, depgraph = DepGraph.display_version_slowdown(version_tasks)
                 slowdowns_by_version[version] = slowdown
+                fig = depgraph.generate_depends_on_graph_diagram()
+                paths = depgraph.depends_on_graph.get_all_simple_paths(9,10)
+                for path in paths:
+                    print(path)
+                    print(depgraph.path_cost(path))
             except ValueError:
                 continue
         sorted_slowdowns_by_version  = {k: v for k, v in sorted(slowdowns_by_version.items(), key=lambda item: item[1])}
@@ -261,7 +266,7 @@ class DepGraph:
     abstract indices for ease of lookup. Requires tasks dict with depends_on elements.
     Main benefit is neighborhood analysis and more advanced graph algorithms and functionality.
     '''
-    def __init__(self, tasks, edge_weight_rule=None, verbose=None):
+    def __init__(self, tasks, edge_weight_rule=None, verbose=True):
 
         self.verbose = verbose
         size = len(tasks)
@@ -279,6 +284,8 @@ class DepGraph:
         self.depends_on_graph = igraph.Graph.Weighted_Adjacency(self._depends_on_adjacency.tolist())
         self.depends_on_graph.vs['label'] = [x for x in range(size)]
         if self.verbose:
+            np.set_printoptions(precision=3, suppress=True, linewidth=200)
+            print(self._depends_on_adjacency)
             for i,x in enumerate(self._task_ids):
                 print('{} {}'.format(i,x))
 
@@ -298,6 +305,18 @@ class DepGraph:
                     else:
                         weight = 1
                     self._depends_on_adjacency[i][j] = weight
+
+    def path_cost(self, path):
+        costs = []
+        total_cost = 0
+        for i in range(len(path)-1):
+            vertex = path[i]
+            next_vertex = path[i+1]
+            cost = self._depends_on_adjacency[vertex][next_vertex]
+            costs.append(cost)
+            total_cost += cost
+        costs.append(total_cost)
+        return costs
 
     def get_task_id_direct_depends_on(self, task_id):
         ''' this is more a sanity check than anything'''
@@ -382,6 +401,10 @@ class DepGraph:
         task_ids_with_incoming_edges = set()
         task_ids_with_outgoing_edges = set()
         all_task_ids = set(tasks.keys())
+        
+        # get max and min time
+        earliest_scheduled = datetime.datetime.max
+        latest_finish = datetime.datetime.min
         # determine the set of time intervals in which at least one task was active. 
         scheduled_intervals = []
         #first, sort tasks by scheduled_time
@@ -392,16 +415,22 @@ class DepGraph:
         for task_id in tasks:
             # construct intervals
             scheduled = tasks[task_id]['scheduled_time']
-            finish = tasks[task_id]['finish_time']
+            finished = tasks[task_id]['finish_time']
+            # check intervals
             if max_finished < scheduled :
                 # we have reached a new interval
                 if min_scheduled != datetime.datetime.min:
                     intervals.append((min_scheduled,max_finished))
                 min_scheduled = scheduled
-                max_finished = finish
+                max_finished = finished
             if max_finished < finished:
                 max_finished = finished
-
+            # check global max and min
+            if latest_finish < finished :
+                latest_finish = finished
+            if scheduled < earliest_scheduled:
+                earliest_scheduled = scheduled
+            # collect topology data
             if tasks[task_id]['depends_on']:
                 task_ids_with_outgoing_edges.add(task_id)
                 for dep_task_item in tasks[task_id]['depends_on']:
@@ -412,8 +441,14 @@ class DepGraph:
         # get the last interval
         intervals.append((min_scheduled,max_finished))
 
-        real_version_latency_dt = latest_finish - earliest_scheduled
-        real_version_latency_seconds = real_version_latency_dt.total_seconds()
+        # calculate total time in which some task was scheduled
+        total_time = datetime.timedelta(0)
+        for interval in intervals:
+            scheduled = interval[0]
+            finished = interval[1]
+            time_amount = finished - scheduled
+            total_time += time_amount
+        real_version_latency_seconds = total_time.total_seconds()
 
         task_ids_with_zero_indegree = all_task_ids - task_ids_with_incoming_edges
         task_ids_with_zero_outdegree = all_task_ids - task_ids_with_outgoing_edges
@@ -458,7 +493,7 @@ class DepGraph:
         print('{} seconds or {} hours (idealized)'.format(idealized_latency_seconds, idealized_latency_seconds/60**2))
         print('{} is slowdown'.format(real_version_latency_seconds/idealized_latency_seconds))
 
-        return slowdown
+        return slowdown, depgraph
 
 def main():
     time_fields = [ 

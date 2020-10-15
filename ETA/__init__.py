@@ -113,8 +113,9 @@ class TaskTimes:
         if bad_time_ids:
             logging.debug("bad date, removing:")
         logging.warning('{}/{} tasks had bad datetime values'.format(len(bad_time_ids),len(tasks)))
-        for _id in bad_time_ids + display_task_ids:
-            logging.debug(tasks[_id])
+        bad_ids = bad_time_ids + display_task_ids
+        logging.debug(bad_ids)
+        for _id in bad_ids:
             del tasks[_id]
 
         return tasks
