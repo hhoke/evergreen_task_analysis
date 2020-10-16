@@ -11,8 +11,8 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 
-logging.basicConfig(level=logging.DEBUG)
-IN_JSON = '2020oct7_all.json'
+logging.basicConfig(level=logging.INFO)
+IN_JSON = 'mms_oct5-9.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -178,9 +178,12 @@ class DepWaitTaskTimes(ETA.TaskTimes):
 
     def display_version_slowdown(self, versions=None):
 
+        #TODO: make is easier to screen out versions containing distros we don't want.
+        # currently, this gets most of them but not all. (this will probably remove a dependency but might not)
+
         allowed_distros = []
         for distro in self.bin_tasks_by_field('distro'):
-            if 'power8' not in distro and 'zseries' not in distro:
+            if 'power8' not in distro and 'zseries' not in distro and 'macos' not in distro and 'windows' not in distro and 'archlinux' not in distro:
                 if distro not in allowed_distros:
                     allowed_distros.append(distro)
 
@@ -190,9 +193,17 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         slowdowns_by_version = {}
         for version in tasks_by_version:
             version_tasks = tasks_by_version[version]
+            skip_version = False
+            for _id in version_tasks:
+                distro = version_tasks[_id]['distro']
+                if distro not in allowed_distros:
+                    skip_version = True
+                    break
+            if skip_version:
+                continue
 
             # set according to particular question you want to answer
-            if len(version_tasks) < 1:
+            if len(version_tasks) < 100:
                 continue
             try:
                 slowdown, _ = DepGraph.display_version_slowdown(version_tasks)
