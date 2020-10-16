@@ -4,7 +4,7 @@ plots task waits by finish time.
 '''
 import datetime
 import logging
-import plotly.express as px                                                                                                     
+import plotly.express as px
 import pandas as pd
 import ETA
 import ETA.Chunks
@@ -17,10 +17,10 @@ IN_JSON = './mms_oct5-9.json'
 
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     if not y:
-        fig = px.timeline(df, x_start=start, x_end=end) 
+        fig = px.timeline(df, x_start=start, x_end=end)
     else:
-        fig = px.timeline(df, x_start=start, x_end=end, y=y) 
-    fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
+        fig = px.timeline(df, x_start=start, x_end=end, y=y)
+    fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
     'paper_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -41,10 +41,10 @@ def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end=
     df_copy['end'] = df_copy[end]
 
     newdf = pd.concat([df, df_copy]).sort_values(by=[sortby], kind='merge')
-   
+
     hoverdata = [start, end, 'distro', '_id']
-    fig = px.timeline(newdf, x_start='start', x_end='end', color="color", hover_data=hoverdata) 
-    fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up 
+    fig = px.timeline(newdf, x_start='start', x_end='end', color="color", hover_data=hoverdata)
+    fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
     'paper_bgcolor': 'rgba(0, 0, 0, 0)',
