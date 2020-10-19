@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 '''
-plots task waits by finish time.
+plots task waits by finish time, and other plots.
 '''
 import datetime
 import logging
 import plotly.express as px
 import pandas as pd
-import ETA
-import ETA.Chunks
-import DependencyAnalysis
+
+import ETA.Chunks as chunks
+import metrics
 
 logging.basicConfig(level=logging.INFO)
 OUT_HTML = './mms_412125d044d0c4f3f80c795d1e173cdc075154b6.html'
 IN_JSON = './mms_oct5-9.json'
 
-
+##
+# gantt
 def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     if not y:
         fig = px.timeline(df, x_start=start, x_end=end)
@@ -51,7 +52,14 @@ def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end=
     })
     return fig
 
+##
+# line
+
 def generate_chunked_running_task_count(task_data , chunks):
+    ''' task data must be an ETA.TaskTimes object.
+    this creates a basic line chart of tasks running per time
+    using ETA.Chunks.
+    '''
 
     tasks = list(task_data.get_tasks({'start_time':[],'finish_time':[]}))
     count_dict = chunks.index_task_on_chunktime_search(tasks)
@@ -63,6 +71,57 @@ def generate_chunked_running_task_count(task_data , chunks):
     df = pd.DataFrame(count_list)
     return px.line(df, x="time", y="active_tasks")
 
+##
+# histogram
+
+def generate_hist_raw_wait_time():
+    ''' returns histogram of wait times'''
+    return generate_hist('raw_wait_time','scheduled_time','start_time')
+
+def generate_hist_corrected_wait_time():
+    ''' returns histogram of wait times, corrected for dependencies'''
+    return generate_hist('corrected_wait_time','begin_wait','start_time')
+
+def generate_hist_turnaround_time():
+    ''' returns histogram of turnaround times'''
+    return generate_hist('turnaround_time','scheduled_time','finish_time')
+
+def generate_hist_blocked_time():
+    ''' returns histogram of blocked times'''
+    return generate_hist('blocked_time','scheduled_time','unblocked_time')
+
+def generate_hist(task_data, title, start_key, end_key):
+    ''' boilerplate function that generates a histogram of some time interval
+    from internal task dict.
+    title is the title of the x axis, must be string
+    start_key is the key used to look up the start of the interval for each task
+    end_key is analogous
+    (value must be datetime.datetime but key is arbitrary)
+    '''
+    finish_times = []
+    total = datetime.timedelta(0)
+    total_hours = 0
+    total_count = 0
+    first_time = True
+    title = title + '(hours)'
+    for task in task_data.get_tasks({start_key:[],end_key:[]}):
+        time_delta = task[end_key] - task[start_key]
+        seconds_in_minute = 60
+        minutes_in_hour = 60
+        time_delta_hour = (time_delta.seconds / seconds_in_minute) / minutes_in_hour
+        finish_times.append({title:time_delta_hour})
+        total_hours += time_delta_hour
+        total += time_delta
+        total_count += 1
+        if first_time:
+            worst = {time_delta_hour:task}
+            first_time = False
+        if time_delta_hour > next(iter(worst)):
+            worst = {time_delta_hour:task}
+    df = pd.DataFrame(finish_times)
+    fig = px.histogram(df, x=title)
+    return fig
+
 def main():
     time_fields = [ 'create_time',
                     'scheduled_time',
@@ -70,13 +129,9 @@ def main():
                     'finish_time',
                     ]
 
-    task_data = DependencyAnalysis.DepWaitTaskTimes(IN_JSON,time_fields)
+    task_data = metrics.DepWaitTaskTimes(IN_JSON,time_fields)
 
-    for task in task_data.get_tasks():
-        # calculate begin_wait and update task with field
-        task_data.update_task_unblocked_time(task)
-
-    # have to do this as a second loop to avoid polluting the unblock calculations
+    # have to do this here to avoid polluting the unblock calculations
     for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]}):
         # add eleven seconds to avoid plotly wierdness
         task['start_time'] += datetime.timedelta(0,11)
