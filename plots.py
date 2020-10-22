@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './mms_412125d044d0c4f3f80c795d1e173cdc075154b6.html'
-IN_JSON = './mms_oct5-9.json'
+OUT_HTML = './totaled.html'
+IN_JSON = './totaled.json'
 
 ##
 # gantt
@@ -74,21 +74,21 @@ def generate_chunked_running_task_count(task_data , chunks):
 ##
 # histogram
 
-def generate_hist_raw_wait_time():
+def generate_hist_raw_wait_time(task_data):
     ''' returns histogram of wait times'''
-    return generate_hist('raw_wait_time','scheduled_time','start_time')
+    return generate_hist(task_data, 'raw_wait_time','scheduled_time','start_time')
 
-def generate_hist_corrected_wait_time():
+def generate_hist_corrected_wait_time(task_data):
     ''' returns histogram of wait times, corrected for dependencies'''
-    return generate_hist('corrected_wait_time','begin_wait','start_time')
+    return generate_hist(task_data, 'corrected_wait_time','begin_wait','start_time')
 
-def generate_hist_turnaround_time():
+def generate_hist_turnaround_time(task_data):
     ''' returns histogram of turnaround times'''
-    return generate_hist('turnaround_time','scheduled_time','finish_time')
+    return generate_hist(task_data, 'turnaround_time','scheduled_time','finish_time')
 
-def generate_hist_blocked_time():
+def generate_hist_blocked_time(task_data):
     ''' returns histogram of blocked times'''
-    return generate_hist('blocked_time','scheduled_time','unblocked_time')
+    return generate_hist(task_data,'blocked_time','scheduled_time','unblocked_time')
 
 def generate_hist(task_data, title, start_key, end_key):
     ''' boilerplate function that generates a histogram of some time interval
@@ -104,6 +104,7 @@ def generate_hist(task_data, title, start_key, end_key):
     total_count = 0
     first_time = True
     title = title + '(hours)'
+    over_count = 0
     for task in task_data.get_tasks({start_key:[],end_key:[]}):
         time_delta = task[end_key] - task[start_key]
         seconds_in_minute = 60
@@ -113,6 +114,8 @@ def generate_hist(task_data, title, start_key, end_key):
         total_hours += time_delta_hour
         total += time_delta
         total_count += 1
+        if time_delta_hour >= 1:
+            over_count +=1
         if first_time:
             worst = {time_delta_hour:task}
             first_time = False
@@ -120,6 +123,8 @@ def generate_hist(task_data, title, start_key, end_key):
             worst = {time_delta_hour:task}
     df = pd.DataFrame(finish_times)
     fig = px.histogram(df, x=title)
+    logging.info(total_hours/total_count)
+    logging.info(over_count)
     return fig
 
 def main():
@@ -137,11 +142,12 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[], 'version':['mms_412125d044d0c4f3f80c795d1e173cdc075154b6']})
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
     fig.show()
-    fig.write_html(OUT_HTML)
+    # cdn options reduce the size of the file by a couple of MB.
+    fig.write_html(OUT_HTML,include_plotlyjs='cdn',include_mathjax='cdn')
     print('figure saved at {}'.format(OUT_HTML))
 
 

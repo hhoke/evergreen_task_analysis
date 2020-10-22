@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+''' versionDiff.py determines which task types are in one version but not the other,
+after ingesting a specified json for each version.'''
 
 import datetime  
 import json                                                                                                                     

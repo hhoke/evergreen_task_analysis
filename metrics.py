@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'foobar.json'
+IN_JSON = 'totaled.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -366,7 +366,7 @@ class DepGraph:
     @classmethod
     def display_version_slowdown(cls, tasks):
         ''' calculates slowdown across version by finding the time a version would have taken
-        if every task starte das soon as its dependencies were met
+        if every task started as soon as its dependencies were met
         (or as soon as it was scheduled, if no dependencies exist.)
         This assumes task runtime would be the same.
         '''
