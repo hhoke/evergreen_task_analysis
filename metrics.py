@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'totaled.json'
+IN_JSON = 'foobar.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -196,11 +196,12 @@ class DepWaitTaskTimes(ETA.TaskTimes):
 
         allowed_distros = []
         for distro in self.bin_tasks_by_field('distro'):
-            if 'power8' not in distro and 'zseries' not in distro and 'macos' not in distro and 'windows' not in distro and 'archlinux' not in distro:
+            #if 'power8' not in distro and 'zseries' not in distro and 'macos' not in distro and 'windows' not in distro and 'archlinux' not in distro:
+            if True: 
                 if distro not in allowed_distros:
                     allowed_distros.append(distro)
 
-        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[], 'distro':allowed_distros})
+        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[],})
 
         tasks_by_version = self.bin_tasks_by_field('version', values=versions, task_generator=generator)
         slowdowns_by_version = {}
@@ -216,12 +217,13 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 continue
 
             # set according to particular question you want to answer
-            if len(version_tasks) < 100:
+            if len(version_tasks) < 10:
                 continue
             try:
                 slowdown, _ = DepGraph.display_version_slowdown(version_tasks)
                 slowdowns_by_version[version] = slowdown
-            except ValueError:
+            except ValueError as e:
+                print(e)
                 continue
         sorted_slowdowns_by_version  = dict(sorted(slowdowns_by_version.items(), key=lambda item: item[1]))
         for version in sorted_slowdowns_by_version:
@@ -382,7 +384,7 @@ class DepGraph:
 
         for task_id in generator_tasks:
             dummy_id = task_id + '_dummygen'
-            dummy_task = generator_tasks[task_id].copy()
+            dummy_task = tasks[task_id].copy()
             dummy_task['finish_time'] = dummy_task['start_time']
             dummy_task['_id'] = dummy_id
             tasks[dummy_id] = dummy_task
@@ -430,7 +432,8 @@ class DepGraph:
                 for dep_task_item in tasks[task_id]['depends_on']:
                     dep_key = dep_task_item['_id']
                     if dep_key not in all_task_ids:
-                        raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
+                        if 'display' not in dep_key:
+                            raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
                     task_ids_with_incoming_edges.add(dep_key)
         # get the last interval
         intervals.append((min_scheduled,max_finished))
@@ -476,7 +479,6 @@ class DepGraph:
             seconds =  timedelta_weight.total_seconds()
             # invert to allow calculation of maxcost path by mincost-path algo
             return -1 * seconds
-
         depgraph = cls(tasks, calculate_maxcost_path_weight)
         idealized_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(
                 source=source_vertex_id, target=target_vertex_id, weights='weight')
@@ -503,7 +505,7 @@ def main():
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
-    task_data.display_pct_waits_over_thresh_per_field()
+    task_data.display_slowdown_by_version()
 
 if __name__ == '__main__':
     main()

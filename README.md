@@ -27,4 +27,4 @@ Repo contains a pipfile. I use [pipenv](https://pipenv-fork.readthedocs.io/en/la
 
 `brew install cairo` is needed for advanced graph functionality, in addition to the pipenv setup.
 
-
+`npm install -g electron@6.1.4 orca` is needed to save figures directly to image, instead of to html

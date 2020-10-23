@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './totaled.html'
-IN_JSON = './totaled.json'
+OUT_HTML = './foobar.html'
+IN_JSON = './foobar.json'
 
 ##
 # gantt
@@ -115,6 +115,8 @@ def generate_hist(task_data, title, start_key, end_key):
         total += time_delta
         total_count += 1
         if time_delta_hour >= 1:
+            logging.info(task["_id"])
+            logging.info(task["version"])
             over_count +=1
         if first_time:
             worst = {time_delta_hour:task}
@@ -145,9 +147,12 @@ def main():
     generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
+    #fig = generate_hist_corrected_wait_time(task_data)
+    fig.update_layout(title = 'foobar')
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     fig.write_html(OUT_HTML,include_plotlyjs='cdn',include_mathjax='cdn')
+    fig.write_image('regular.webp')
     print('figure saved at {}'.format(OUT_HTML))
 
 
