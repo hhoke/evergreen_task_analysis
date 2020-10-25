@@ -152,7 +152,7 @@ def main():
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     fig.write_html(OUT_HTML,include_plotlyjs='cdn',include_mathjax='cdn')
-    fig.write_image('regular.webp')
+    fig.write_image('foobar.webp')
     print('figure saved at {}'.format(OUT_HTML))
 
 
