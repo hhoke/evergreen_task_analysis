@@ -15,7 +15,6 @@ requests = "*"
 pyyaml = "*"
 pyotp = "*"
 pylint = "*"
-psutil = "*"
 
 [requires]
 python_version = "3.7"
