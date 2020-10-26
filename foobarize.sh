@@ -4,7 +4,7 @@ set -xeou pipefail
 function replace_keyword {
 	keyword=$1
 	replacement=$2
-	perl -p -i -e "s/${keyword}/${replacement}/g" DependencyAnalysis.py TaskWaitsByFinishTime.py get_task_data.sh get_tasks.js
+	perl -p -i -e "s/${keyword}/${replacement}/g" metrics.py plots.py get_task_data.sh get_tasks.js
 }
 
 function defoobarize {

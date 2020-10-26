@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 '''
-analysis of task dependencies
+Computational methods for calculating metrics for individual tasks,
+as well as for distros and build versions.
+Contains some basic methods for visualizing dependency graphs and so on, useful for tuning.
+Contains methods for displaying these statistics in simple, text-only format.
+For more visually pleasing figures, see plots.py.
 '''
 import datetime
 import logging
 import igraph
 
-import plotly.express as px
-import pandas as pd
 import numpy as np
 
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'mms_oct5-9.json'
+IN_JSON = 'foobar.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -41,6 +43,10 @@ class DepWaitTaskTimes(ETA.TaskTimes):
             raise ValueError("required fields missing: {}".format(required_fields_missing))
 
         super().__init__(in_json,time_fields)
+
+        for task in self.get_tasks():
+            # calculate begin_wait and update task with field
+            self.update_task_unblocked_time(task)
 
     ##
     # calculate additional fields and return value
@@ -185,16 +191,17 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         by version, in ascending order (better to worse)'''
 
         #TODO: make is easier to screen out versions containing distros we don't want.
-        # currently, this gets most of them but not all. 
+        # currently, this gets most of them but not all.
         #(this will probably remove a dependency but might not)
 
         allowed_distros = []
         for distro in self.bin_tasks_by_field('distro'):
-            if 'power8' not in distro and 'zseries' not in distro and 'macos' not in distro and 'windows' not in distro and 'archlinux' not in distro:
+            #if 'power8' not in distro and 'zseries' not in distro and 'macos' not in distro and 'windows' not in distro and 'archlinux' not in distro:
+            if True: 
                 if distro not in allowed_distros:
                     allowed_distros.append(distro)
 
-        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[], 'distro':allowed_distros})
+        generator = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[],})
 
         tasks_by_version = self.bin_tasks_by_field('version', values=versions, task_generator=generator)
         slowdowns_by_version = {}
@@ -210,67 +217,36 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 continue
 
             # set according to particular question you want to answer
-            if len(version_tasks) < 100:
+            if len(version_tasks) < 10:
                 continue
             try:
                 slowdown, _ = DepGraph.display_version_slowdown(version_tasks)
                 slowdowns_by_version[version] = slowdown
-            except ValueError:
+            except ValueError as e:
+                print(e)
                 continue
         sorted_slowdowns_by_version  = dict(sorted(slowdowns_by_version.items(), key=lambda item: item[1]))
         for version in sorted_slowdowns_by_version:
             print('{}: {}'.format(sorted_slowdowns_by_version[version],version))
 
-    ##
-    # figure generation
+    def display_pct_waits_over_thresh_per_field(self, threshold_minutes=10, field='distro'):
+        ''' display the percentage of task latency times that are over threshold # of minutes,
+            grouped by the values of field. 
+            This uses the latency time corrected for dependency effects'''
+        generator = self.get_tasks({'start_time':[],'begin_wait':[]})
+        tasks_by_field = self.bin_tasks_by_field(field, task_generator=generator)
+        threshold_timedelta = datetime.timedelta(minutes=threshold_minutes)
+        for field_key in tasks_by_field:
+            total_tasks = len(tasks_by_field[field_key])
+            tasks_over_threshold = 0
+            for task in tasks_by_field[field_key].values():
+                value = task['start_time'] - task['begin_wait']
+                if threshold_timedelta < value:
+                    tasks_over_threshold += 1
+            pct = ( tasks_over_threshold / total_tasks ) * 100
+            print('{PCT}pct, {BAD}/{TOTAL}, {FIELD}'.format(
+                PCT=pct, BAD=tasks_over_threshold, TOTAL=total_tasks, FIELD=field_key))
 
-    def generate_hist_raw_wait_time(self):
-        ''' returns histogram of wait times'''
-        return self.generate_hist('raw_wait_time','scheduled_time','start_time')
-
-    def generate_hist_corrected_wait_time(self):
-        ''' returns histogram of wait times, corrected for dependencies'''
-        return self.generate_hist('corrected_wait_time','begin_wait','start_time')
-
-    def generate_hist_turnaround_time(self):
-        ''' returns histogram of turnaround times'''
-        return self.generate_hist('turnaround_time','scheduled_time','finish_time')
-
-    def generate_hist_blocked_time(self):
-        ''' returns histogram of blocked times'''
-        return self.generate_hist('blocked_time','scheduled_time','unblocked_time')
-
-    def generate_hist(self, title, start_key, end_key):
-        ''' boilerplate function that generates a histogram of some time interval
-        from internal task dict. 
-        title is the title of the x axis, must be string 
-        start_key is the key used to look up the start of the interval for each task
-        end_key is analogous
-        (value must be datetime.datetime but key is arbitrary)
-        '''
-        finish_times = []
-        total = datetime.timedelta(0)
-        total_hours = 0
-        total_count = 0
-        first_time = True
-        title = title + '(hours)'
-        for task in self.get_tasks({start_key:[],end_key:[]}):
-            time_delta = task[end_key] - task[start_key]
-            seconds_in_minute = 60
-            minutes_in_hour = 60
-            time_delta_hour = (time_delta.seconds / seconds_in_minute) / minutes_in_hour
-            finish_times.append({title:time_delta_hour})
-            total_hours += time_delta_hour
-            total += time_delta
-            total_count += 1
-            if first_time:
-                worst = {time_delta_hour:task}
-                first_time = False
-            if time_delta_hour > next(iter(worst)):
-                worst = {time_delta_hour:task}
-        df = pd.DataFrame(finish_times)
-        fig = px.histogram(df, x=title)
-        return fig
 
 class DepGraph:
     ''' contains data structures and methods for more directly manipulating DAG dependency graphs
@@ -294,7 +270,7 @@ class DepGraph:
 
         # convert to igraph for advanced graph algos and visualization
         self.depends_on_graph = igraph.Graph.Weighted_Adjacency(self._depends_on_adjacency.tolist())
-        self.depends_on_graph.vs['label'] = [x for x in range(size)]
+        self.depends_on_graph.vs['label'] = list(range(size))
         if self.verbose:
             np.set_printoptions(precision=3, suppress=True, linewidth=200)
             print(self._depends_on_adjacency)
@@ -321,7 +297,7 @@ class DepGraph:
                     self._depends_on_adjacency[i][j] = weight
 
     def path_cost(self, path):
-        '''given a path (list of vertices), 
+        '''given a path (list of vertices),
         returns a list of weights for each edge in path,
         and the sum of edge weights / total cost of walking the path'''
         costs = []
@@ -391,9 +367,9 @@ class DepGraph:
 
     @classmethod
     def display_version_slowdown(cls, tasks):
-        ''' calculates slowdown across version by finding the time a version would have taken 
-        if every task starte das soon as its dependencies were met 
-        (or as soon as it was scheduled, if no dependencies exist.) 
+        ''' calculates slowdown across version by finding the time a version would have taken
+        if every task started as soon as its dependencies were met
+        (or as soon as it was scheduled, if no dependencies exist.)
         This assumes task runtime would be the same.
         '''
         # make implicit dependency of generated on generator explicit
@@ -408,7 +384,7 @@ class DepGraph:
 
         for task_id in generator_tasks:
             dummy_id = task_id + '_dummygen'
-            dummy_task = generator_tasks[task_id].copy()
+            dummy_task = tasks[task_id].copy()
             dummy_task['finish_time'] = dummy_task['start_time']
             dummy_task['_id'] = dummy_id
             tasks[dummy_id] = dummy_task
@@ -456,7 +432,8 @@ class DepGraph:
                 for dep_task_item in tasks[task_id]['depends_on']:
                     dep_key = dep_task_item['_id']
                     if dep_key not in all_task_ids:
-                        raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
+                        if 'display' not in dep_key:
+                            raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
                     task_ids_with_incoming_edges.add(dep_key)
         # get the last interval
         intervals.append((min_scheduled,max_finished))
@@ -502,7 +479,6 @@ class DepGraph:
             seconds =  timedelta_weight.total_seconds()
             # invert to allow calculation of maxcost path by mincost-path algo
             return -1 * seconds
-
         depgraph = cls(tasks, calculate_maxcost_path_weight)
         idealized_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(
                 source=source_vertex_id, target=target_vertex_id, weights='weight')

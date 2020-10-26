@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-''' Goes through recent patches and passes them on for further processing
+''' fetches recent patches from the evergreen API and passes them on for further processing
 '''
 import requests
 import yaml
