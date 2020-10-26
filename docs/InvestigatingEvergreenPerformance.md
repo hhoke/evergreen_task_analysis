@@ -158,7 +158,7 @@ This is a gantt chart of all tasks from rhel62-large from UTC noon, August 4th, 
 This and all other gantt charts consist of tasks ordered from top to bottom by `scheduled_time`. There are two bars per task, as described below in the <a id="gantt-intro">[\[Glossary\]](#Glossary)</a>, but they are not visile as distinct bars in this image due to the number of tasks.
 
 The frame below is not interactive, due to its size. 
-<iframe id="Totaled" scrolling="no" style="border:none;" seamless="seamless" src="https://evergreen-task-analysis.s3.us-east-2.amazonaws.com/totaled.png" height="944" width="630" style="-webkit-transform:scale(0.5);-moz-transform-scale(0.5);"></iframe>
+<iframe id="Totaled" scrolling="no" style="border:none;" seamless="seamless" src="https://evergreen-task-analysis.s3.us-east-2.amazonaws.com/totaled.png" height="944" width="630"></iframe>
 
 As you can see above, 2,970 tasks waited for greater than eight hourse before they began. The above figure somewhat overstates this, due to visualization artefacts caused by the number of tasks.
 
@@ -207,7 +207,7 @@ However, we can investigate the impact of some of these jobs on their versions u
 
 ### Version Performance
 
-TODO, I need a better handle on interpreting the effect of particular tasks on the slowdown metric.
+TODO, I need a better handle on interpreting the effect of particular tasks on the slowdown metric, see "Constructing a Slowdown Metric for Evergreen" above.
 
 Glossary
 --- 
@@ -220,6 +220,7 @@ Glossary
 Citations
 ---
 
-<b id="Slowdown-Definition"></b>https://www.cs.huji.ac.il/~feit/parsched/jsspp98/p-98-1.pdf[↩](#slowdowndefinition)
+<b id="Slowdown-Definition"></b><a href="https://www.cs.huji.ac.il/~feit/parsched/jsspp98/p-98-1.pdf">https://www.cs.huji.ac.il/~feit/parsched/jsspp98/p-98-1.pdf</a>[↩](#slowdowndefinition)
 
-<b id="Critical-Path"></b>https://arxiv.org/pdf/1701.08800.pdf[↩](#criticalpath)
+<b id="Critical-Path"></b><a href="https://arxiv.org/pdf/1701.08800.pdf">https://arxiv.org/pdf/1701.08800.pdf</a>[↩](#criticalpath)
+
