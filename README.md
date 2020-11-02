@@ -27,3 +27,8 @@ Repo contains a pipfile. I use [pipenv](https://pipenv-fork.readthedocs.io/en/la
 
 `brew install cairo` is needed for advanced graph functionality, in addition to the pipenv setup.
 
+## Docs
+
+An in-depth and continually-expanding writeup of findings and approaches can be found here:
+[https://hhoke.github.io/evergreen_task_analysis/InvestigatingEvergreenPerformance.html](https://hhoke.github.io/evergreen_task_analysis/InvestigatingEvergreenPerformance.html)
+
