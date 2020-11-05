@@ -375,6 +375,8 @@ class DepGraph:
         # make implicit dependency of generated on generator explicit
         generator_tasks = {}
         for task_id in tasks:
+            if 'begin_wait' not in tasks[task_id]:
+                raise ValueError('begin_wait missing from: {}'.format(task_id))
             if 'generated_by' in tasks[task_id]:
                 generated_by = tasks[task_id]['generated_by']
                 if generated_by in generator_tasks:
@@ -432,7 +434,7 @@ class DepGraph:
         source_id = 'dummy_source'
         source_vertex = {'_id': source_id, 'depends_on':[{'_id':x} for x in task_ids_with_zero_indegree]}
         source_vertex['start_time'] = earliest_scheduled
-        source_vertex['scheduled_time'] = earliest_scheduled 
+        source_vertex['begin_wait'] = earliest_scheduled 
         source_vertex['finish_time'] = earliest_scheduled + datetime.timedelta(seconds=1)
         source_vertex_id = len(tasks)
         tasks[source_id] = source_vertex
@@ -440,7 +442,7 @@ class DepGraph:
         target_id = 'dummy_target'
         target_vertex = {'_id': target_id, 'depends_on':[]}
         target_vertex['start_time'] = latest_finish
-        target_vertex['scheduled_time'] = latest_finish
+        target_vertex['begin_wait'] = latest_finish
         target_vertex['finish_time'] = latest_finish + datetime.timedelta(seconds=1)
         target_vertex_id = len(tasks)
         tasks[target_id] = target_vertex
@@ -468,7 +470,7 @@ class DepGraph:
 
         def calculate_real_maxcost_path_weight(some_task):
             ''' helper to pass to graph constructor'''
-            timedelta_weight = some_task['finish_time'] - some_task['scheduled_time']
+            timedelta_weight = some_task['finish_time'] - some_task['begin_wait']
             seconds =  timedelta_weight.total_seconds()
             # invert to allow calculation of maxcost path by mincost-path algo
             return -1 * seconds
