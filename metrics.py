@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'foobar.json'
+IN_JSON = 'rhel62-small.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -217,7 +217,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 continue
 
             # set according to particular question you want to answer
-            if len(version_tasks) < 10:
+            if len(version_tasks) < 100:
                 continue
             try:
                 slowdown, _ = DepGraph.display_version_slowdown(version_tasks)
@@ -384,6 +384,8 @@ class DepGraph:
 
         for task_id in generator_tasks:
             dummy_id = task_id + '_dummygen'
+            if task_id not in tasks:
+                raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(task_id))
             dummy_task = tasks[task_id].copy()
             dummy_task['finish_time'] = dummy_task['start_time']
             dummy_task['_id'] = dummy_id
@@ -430,6 +432,7 @@ class DepGraph:
         source_id = 'dummy_source'
         source_vertex = {'_id': source_id, 'depends_on':[{'_id':x} for x in task_ids_with_zero_indegree]}
         source_vertex['start_time'] = earliest_scheduled
+        source_vertex['scheduled_time'] = earliest_scheduled 
         source_vertex['finish_time'] = earliest_scheduled + datetime.timedelta(seconds=1)
         source_vertex_id = len(tasks)
         tasks[source_id] = source_vertex
@@ -437,6 +440,7 @@ class DepGraph:
         target_id = 'dummy_target'
         target_vertex = {'_id': target_id, 'depends_on':[]}
         target_vertex['start_time'] = latest_finish
+        target_vertex['scheduled_time'] = latest_finish
         target_vertex['finish_time'] = latest_finish + datetime.timedelta(seconds=1)
         target_vertex_id = len(tasks)
         tasks[target_id] = target_vertex
@@ -478,12 +482,12 @@ class DepGraph:
 
         slowdown = real_latency_seconds/idealized_latency_seconds
         print('{} seconds or {} hours (actual)'.format(
-            real_version_latency_seconds, real_version_latency_seconds/60**2))
+            real_latency_seconds, real_latency_seconds/60**2))
 
         print('{} seconds or {} hours (idealized)'.format(
             idealized_latency_seconds, idealized_latency_seconds/60**2))
 
-        print('{} is slowdown'.format(real_version_latency_seconds/idealized_latency_seconds))
+        print('{} is slowdown'.format(real_latency_seconds/idealized_latency_seconds))
 
         return slowdown, depgraph
 

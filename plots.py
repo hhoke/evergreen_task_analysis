@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './foobar.html'
-IN_JSON = './foobar.json'
+OUT_HTML = './rhel62-small.html'
+IN_JSON = './rhel62-small.json'
 
 ##
 # gantt
@@ -148,11 +148,11 @@ def main():
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
     #fig = generate_hist_corrected_wait_time(task_data)
-    fig.update_layout(title = 'foobar')
+    fig.update_layout(title = 'rhel62-small')
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     fig.write_html(OUT_HTML,include_plotlyjs='cdn',include_mathjax='cdn')
-    fig.write_image('foobar.webp')
+    fig.write_image('rhel62-small.webp')
     print('figure saved at {}'.format(OUT_HTML))
 
 
