@@ -139,12 +139,12 @@ def main():
     task_data = metrics.DepWaitTaskTimes(IN_JSON,time_fields)
 
     # have to do this here to avoid polluting the unblock calculations
-    for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]}):
+    for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':'foobar'}):
         # add eleven seconds to avoid plotly wierdness
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':'foobar'})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
     #fig = generate_hist_corrected_wait_time(task_data)
@@ -152,7 +152,6 @@ def main():
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     fig.write_html(OUT_HTML,include_plotlyjs='cdn',include_mathjax='cdn')
-    fig.write_image('foobar.webp')
     print('figure saved at {}'.format(OUT_HTML))
 
 

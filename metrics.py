@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'foobar.json'
+IN_JSON = 'rhel62-small.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -217,7 +217,7 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 continue
 
             # set according to particular question you want to answer
-            if len(version_tasks) < 10:
+            if len(version_tasks) < 100:
                 continue
             try:
                 slowdown, _ = DepGraph.display_version_slowdown(version_tasks)
@@ -375,6 +375,8 @@ class DepGraph:
         # make implicit dependency of generated on generator explicit
         generator_tasks = {}
         for task_id in tasks:
+            if 'begin_wait' not in tasks[task_id]:
+                raise ValueError('begin_wait missing from: {}'.format(task_id))
             if 'generated_by' in tasks[task_id]:
                 generated_by = tasks[task_id]['generated_by']
                 if generated_by in generator_tasks:
@@ -384,6 +386,8 @@ class DepGraph:
 
         for task_id in generator_tasks:
             dummy_id = task_id + '_dummygen'
+            if task_id not in tasks:
+                raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(task_id))
             dummy_task = tasks[task_id].copy()
             dummy_task['finish_time'] = dummy_task['start_time']
             dummy_task['_id'] = dummy_id
@@ -402,25 +406,12 @@ class DepGraph:
         # get max and min time
         earliest_scheduled = datetime.datetime.max
         latest_finish = datetime.datetime.min
-        # determine the set of time intervals in which at least one task was active.
-        intervals = []
         #first, sort tasks by scheduled_time
         tasks = dict(sorted(tasks.items(), key=lambda item: item[1]['scheduled_time']))
-        min_scheduled = datetime.datetime.min
-        max_finished = datetime.datetime.min
         for task_id in tasks:
             # construct intervals
             scheduled = tasks[task_id]['scheduled_time']
             finished = tasks[task_id]['finish_time']
-            # check intervals
-            if max_finished < scheduled :
-                # we have reached a new interval
-                if min_scheduled != datetime.datetime.min:
-                    intervals.append((min_scheduled,max_finished))
-                min_scheduled = scheduled
-                max_finished = finished
-            if max_finished < finished:
-                max_finished = finished
             # check global max and min
             if latest_finish < finished :
                 latest_finish = finished
@@ -435,17 +426,6 @@ class DepGraph:
                         if 'display' not in dep_key:
                             raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
                     task_ids_with_incoming_edges.add(dep_key)
-        # get the last interval
-        intervals.append((min_scheduled,max_finished))
-
-        # calculate total time in which some task was scheduled
-        total_time = datetime.timedelta(0)
-        for interval in intervals:
-            scheduled = interval[0]
-            finished = interval[1]
-            time_amount = finished - scheduled
-            total_time += time_amount
-        real_version_latency_seconds = total_time.total_seconds()
 
         task_ids_with_zero_indegree = all_task_ids - task_ids_with_incoming_edges
         task_ids_with_zero_outdegree = all_task_ids - task_ids_with_outgoing_edges
@@ -454,6 +434,7 @@ class DepGraph:
         source_id = 'dummy_source'
         source_vertex = {'_id': source_id, 'depends_on':[{'_id':x} for x in task_ids_with_zero_indegree]}
         source_vertex['start_time'] = earliest_scheduled
+        source_vertex['begin_wait'] = earliest_scheduled 
         source_vertex['finish_time'] = earliest_scheduled + datetime.timedelta(seconds=1)
         source_vertex_id = len(tasks)
         tasks[source_id] = source_vertex
@@ -461,6 +442,7 @@ class DepGraph:
         target_id = 'dummy_target'
         target_vertex = {'_id': target_id, 'depends_on':[]}
         target_vertex['start_time'] = latest_finish
+        target_vertex['begin_wait'] = latest_finish
         target_vertex['finish_time'] = latest_finish + datetime.timedelta(seconds=1)
         target_vertex_id = len(tasks)
         tasks[target_id] = target_vertex
@@ -473,27 +455,41 @@ class DepGraph:
                 raise
 
         # call mincost_path
-        def calculate_maxcost_path_weight(some_task):
+        def calculate_ideal_maxcost_path_weight(some_task):
             ''' helper to pass to graph constructor'''
             timedelta_weight = some_task['finish_time'] - some_task['start_time']
             seconds =  timedelta_weight.total_seconds()
             # invert to allow calculation of maxcost path by mincost-path algo
             return -1 * seconds
-        depgraph = cls(tasks, calculate_maxcost_path_weight)
+        depgraph = cls(tasks, calculate_ideal_maxcost_path_weight)
         idealized_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(
                 source=source_vertex_id, target=target_vertex_id, weights='weight')
         # have to add 1 second to correct for dummy_source second-long runtime,
         # then multiply by -1 again to make the mincost path positive.
         idealized_latency_seconds = (idealized_latency[0][0] +1 ) * -1
 
-        slowdown = real_version_latency_seconds/idealized_latency_seconds
+        def calculate_real_maxcost_path_weight(some_task):
+            ''' helper to pass to graph constructor'''
+            timedelta_weight = some_task['finish_time'] - some_task['begin_wait']
+            seconds =  timedelta_weight.total_seconds()
+            # invert to allow calculation of maxcost path by mincost-path algo
+            return -1 * seconds
+
+        depgraph = cls(tasks, calculate_real_maxcost_path_weight)
+        real_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(
+                source=source_vertex_id, target=target_vertex_id, weights='weight')
+        # have to add 1 second to correct for dummy_source second-long runtime,
+        # then multiply by -1 again to make the mincost path positive.
+        real_latency_seconds = (real_latency[0][0] +1 ) * -1
+
+        slowdown = real_latency_seconds/idealized_latency_seconds
         print('{} seconds or {} hours (actual)'.format(
-            real_version_latency_seconds, real_version_latency_seconds/60**2))
+            real_latency_seconds, real_latency_seconds/60**2))
 
         print('{} seconds or {} hours (idealized)'.format(
             idealized_latency_seconds, idealized_latency_seconds/60**2))
 
-        print('{} is slowdown'.format(real_version_latency_seconds/idealized_latency_seconds))
+        print('{} is slowdown'.format(real_latency_seconds/idealized_latency_seconds))
 
         return slowdown, depgraph
 
