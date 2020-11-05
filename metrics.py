@@ -402,25 +402,12 @@ class DepGraph:
         # get max and min time
         earliest_scheduled = datetime.datetime.max
         latest_finish = datetime.datetime.min
-        # determine the set of time intervals in which at least one task was active.
-        intervals = []
         #first, sort tasks by scheduled_time
         tasks = dict(sorted(tasks.items(), key=lambda item: item[1]['scheduled_time']))
-        min_scheduled = datetime.datetime.min
-        max_finished = datetime.datetime.min
         for task_id in tasks:
             # construct intervals
             scheduled = tasks[task_id]['scheduled_time']
             finished = tasks[task_id]['finish_time']
-            # check intervals
-            if max_finished < scheduled :
-                # we have reached a new interval
-                if min_scheduled != datetime.datetime.min:
-                    intervals.append((min_scheduled,max_finished))
-                min_scheduled = scheduled
-                max_finished = finished
-            if max_finished < finished:
-                max_finished = finished
             # check global max and min
             if latest_finish < finished :
                 latest_finish = finished
@@ -435,17 +422,6 @@ class DepGraph:
                         if 'display' not in dep_key:
                             raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(dep_key))
                     task_ids_with_incoming_edges.add(dep_key)
-        # get the last interval
-        intervals.append((min_scheduled,max_finished))
-
-        # calculate total time in which some task was scheduled
-        total_time = datetime.timedelta(0)
-        for interval in intervals:
-            scheduled = interval[0]
-            finished = interval[1]
-            time_amount = finished - scheduled
-            total_time += time_amount
-        real_version_latency_seconds = total_time.total_seconds()
 
         task_ids_with_zero_indegree = all_task_ids - task_ids_with_incoming_edges
         task_ids_with_zero_outdegree = all_task_ids - task_ids_with_outgoing_edges
@@ -473,20 +449,34 @@ class DepGraph:
                 raise
 
         # call mincost_path
-        def calculate_maxcost_path_weight(some_task):
+        def calculate_ideal_maxcost_path_weight(some_task):
             ''' helper to pass to graph constructor'''
             timedelta_weight = some_task['finish_time'] - some_task['start_time']
             seconds =  timedelta_weight.total_seconds()
             # invert to allow calculation of maxcost path by mincost-path algo
             return -1 * seconds
-        depgraph = cls(tasks, calculate_maxcost_path_weight)
+        depgraph = cls(tasks, calculate_ideal_maxcost_path_weight)
         idealized_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(
                 source=source_vertex_id, target=target_vertex_id, weights='weight')
         # have to add 1 second to correct for dummy_source second-long runtime,
         # then multiply by -1 again to make the mincost path positive.
         idealized_latency_seconds = (idealized_latency[0][0] +1 ) * -1
 
-        slowdown = real_version_latency_seconds/idealized_latency_seconds
+        def calculate_real_maxcost_path_weight(some_task):
+            ''' helper to pass to graph constructor'''
+            timedelta_weight = some_task['finish_time'] - some_task['scheduled_time']
+            seconds =  timedelta_weight.total_seconds()
+            # invert to allow calculation of maxcost path by mincost-path algo
+            return -1 * seconds
+
+        depgraph = cls(tasks, calculate_real_maxcost_path_weight)
+        real_latency = depgraph.depends_on_graph.shortest_paths_dijkstra(
+                source=source_vertex_id, target=target_vertex_id, weights='weight')
+        # have to add 1 second to correct for dummy_source second-long runtime,
+        # then multiply by -1 again to make the mincost path positive.
+        real_latency_seconds = (real_latency[0][0] +1 ) * -1
+
+        slowdown = real_latency_seconds/idealized_latency_seconds
         print('{} seconds or {} hours (actual)'.format(
             real_version_latency_seconds, real_version_latency_seconds/60**2))
 
