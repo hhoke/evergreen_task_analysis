@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'rhel62-small.json'
+IN_JSON = 'foobar.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
