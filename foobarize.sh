@@ -19,6 +19,6 @@ function refoobarize {
 k=$1
 shift
 defoobarize $k
-./get_task_data.sh
+#./get_task_data.sh
 $@
 refoobarize $k
