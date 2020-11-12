@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'rhel62-small.json'
+IN_JSON = 'foobar.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -113,9 +113,11 @@ class DepWaitTaskTimes(ETA.TaskTimes):
             if latest_finish != task['scheduled_time'] :
                 task['unblocked_time'] = latest_finish
                 task['begin_wait'] = latest_finish
+                task['latency'] = task['finish_time'] - task['begin_wait']
                 return True
         #if we're here, didn't set 'unblocked_time'
         task['begin_wait'] = task['scheduled_time']
+        task['latency'] = task['finish_time'] - task['begin_wait']
         return False
 
     @staticmethod

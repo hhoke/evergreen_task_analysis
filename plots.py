@@ -55,14 +55,13 @@ def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end=
 ##
 # line
 
-def generate_chunked_running_task_count(task_data , chunks):
+def generate_chunked_running_task_count(task_list, chunk_times):
     ''' task data must be an ETA.TaskTimes object.
     this creates a basic line chart of tasks running per time
     using ETA.Chunks.
     '''
 
-    tasks = list(task_data.get_tasks({'start_time':[],'finish_time':[]}))
-    count_dict = chunks.index_task_on_chunktime_search(tasks)
+    count_dict = chunk_times.index_task_on_chunktime_search(task_list)
     count_list = []
     for time in count_dict:
         timepoint_dict = {'time': time, 'active_tasks': count_dict[time] }
@@ -137,17 +136,25 @@ def main():
                     ]
 
     task_data = metrics.DepWaitTaskTimes(IN_JSON,time_fields)
+    start = datetime.datetime(2020, 10, 14, 12, 0)
+    end = datetime.datetime(2020, 10, 15, 8, 0)
+    chunk = datetime.timedelta(minutes=5)
+    chunk_times = chunks.ChunkTimes(start, end, chunk)
+    task_list = list(task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'}))
+    task_list = [task for task in task_list if task['latency'] > datetime.timedelta(hours=1)]
+    fig = generate_chunked_running_task_count(task_list, chunk_times)
 
+    '''
     # have to do this here to avoid polluting the unblock calculations
-    for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':'foobar'}):
+    for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'}):
         # add eleven seconds to avoid plotly wierdness
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':'foobar'})
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
-    #fig = generate_hist_corrected_wait_time(task_data)
+    '''
     fig.update_layout(title = 'foobar')
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
