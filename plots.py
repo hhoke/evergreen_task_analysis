@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './foobar.html'
-IN_JSON = './foobar.json'
+#OUT_HTML = './foobar.html'
+IN_JSON = './cruisin.json'
 
 ##
 # gantt
@@ -140,28 +140,33 @@ def main():
     end = datetime.datetime(2020, 10, 15, 8, 0)
     chunk = datetime.timedelta(minutes=5)
     chunk_times = chunks.ChunkTimes(start, end, chunk)
-    task_list = list(task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'}))
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel62-large']})
+    task_list = list(generator)
     task_list = [task for task in task_list if task['latency'] > datetime.timedelta(hours=1)]
-    fig = generate_chunked_running_task_count(task_list, chunk_times)
+    versions = []
+    for task in task_list:
+        if task['version'] not in versions:
+            versions.append(task['version'])
 
-    '''
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
+    task_list = list(generator)
+    for task in task_list:
     # have to do this here to avoid polluting the unblock calculations
-    for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'}):
         # add eleven seconds to avoid plotly wierdness
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
-
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'})
-    df = task_data.dataframe(generator)
-    fig = generate_twocolor_timeline(df)
-    '''
-    fig.update_layout(title = 'foobar')
-    fig.show()
-    # cdn options reduce the size of the file by a couple of MB.
-    fig.write_html(OUT_HTML,include_plotlyjs='cdn',include_mathjax='cdn')
-    print('figure saved at {}'.format(OUT_HTML))
-
-
+   
+    print(len(versions))
+    for version in versions:
+        generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version]})
+        df = task_data.dataframe(generator)
+        fig = generate_twocolor_timeline(df)
+        fig.update_layout(title = version)
+        #fig.show()
+        # cdn options reduce the size of the file by a couple of MB.
+        out_html = './{}.html'.format(version)
+        fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
+        print('figure saved at {}'.format(out_html))
 
 if __name__ == '__main__':
     main()
