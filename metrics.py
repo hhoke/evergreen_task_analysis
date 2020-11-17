@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'foobar.json'
+IN_JSON = 'cruisin.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -162,11 +162,11 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         print('{} total time blocked'.format(total_time_blocked))
         print('{} total time unblocked_waiting'.format(total_time_unblocked_waiting))
 
-    def display_worst_unblocked_wait_per_field(self, field):
-        ''' at present this only looks at unblocked wait time for tasks which have dependencies.
-        This is inaccurate, as all tasks without dependencies are unblocked when they are scheduled.
+    def display_worst_unblocked_wait_per_field(self, field, generator=None):
+        ''' field can be distro or any other valid task field.
         '''
-        generator = self.get_tasks({'start_time':[],'begin_wait':[]})
+        if not generator:
+            generator = self.get_tasks({'start_time':[],'begin_wait':[]})
         tasks_by_field = self.bin_tasks_by_field(field, task_generator=generator)
         worst_waits = {}
         worst_wait_ids = {}
@@ -229,7 +229,10 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 continue
         sorted_slowdowns_by_version  = dict(sorted(slowdowns_by_version.items(), key=lambda item: item[1]))
         for version in sorted_slowdowns_by_version:
+            print()
             print('{}: {}'.format(sorted_slowdowns_by_version[version],version))
+            version_gen = self.get_tasks({'scheduled_time':[],'start_time':[],'finish_time':[],'version':[version]})
+            self.display_worst_unblocked_wait_per_field('distro', generator=version_gen)
 
     def display_pct_waits_over_thresh_per_field(self, threshold_minutes=10, field='distro'):
         ''' display the percentage of task latency times that are over threshold # of minutes,
