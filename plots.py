@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './foobar.html'
-IN_JSON = './foobar.json'
+#OUT_HTML = './foobar.html'
+IN_JSON = './cruisin.json'
 
 ##
 # gantt
@@ -28,24 +28,28 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     })
     return fig
 
-def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end='finish_time', sortby='scheduled_time'):
+def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end='finish_time', sortby='scheduled_time', 
+        highlighted_task=None):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
     # create identical copy and introduce color field so you can still group on same y point
-    df["color"] = 'Waiting ({} to {})'.format(start,middle)
+    df['color'] = 'Waiting ({} to {})'.format(start,middle)
     df['start'] = df_copy[start]
     df['end'] = df_copy[middle]
 
-    df_copy["color"] = 'Running ({} to {})'.format(middle,end)
+    df_copy['color'] = 'Running ({} to {})'.format(middle,end)
     df_copy['start'] = df_copy[middle]
     df_copy['end'] = df_copy[end]
 
     newdf = pd.concat([df, df_copy]).sort_values(by=[sortby], kind='merge')
 
+    if highlighted_task:
+        newdf.loc[newdf._id == highlighted_task, 'color'] = "highlighted"
+
     hoverdata = [start, end, 'distro', '_id']
     fig = px.timeline(newdf, x_start='start', x_end='end', color="color", hover_data=hoverdata)
-    fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up
+    fig.update_yaxes(autorange='reversed') # otherwise tasks are listed from the bottom up
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
     'paper_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -140,28 +144,60 @@ def main():
     end = datetime.datetime(2020, 10, 15, 8, 0)
     chunk = datetime.timedelta(minutes=5)
     chunk_times = chunks.ChunkTimes(start, end, chunk)
-    task_list = list(task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'}))
-    task_list = [task for task in task_list if task['latency'] > datetime.timedelta(hours=1)]
-    fig = generate_chunked_running_task_count(task_list, chunk_times)
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
+    task_list = list(generator)
+    task_list = [task for task in task_list if task['wait_time'] > datetime.timedelta(hours=1)]
+    versions = []
+    vorsions = {}
+    for task in task_list:
+        if task['version'] not in versions:
+            versions.append(task['version'])
+            vorsions[task['version']] = [task['_id']]
+        else: 
+            vorsions[task['version']].append(task['_id'])
 
-    '''
+    print(vorsions)
+    print(len(task_list))
+
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
+    task_list = list(generator)
+    for task in task_list:
     # have to do this here to avoid polluting the unblock calculations
-    for task in task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'}):
         # add eleven seconds to avoid plotly wierdness
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
+   
+    print(len(versions))
+    slowdowns_by_version = {}
+    for version in versions:
+    
+        generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version]})
+        version_tasks = {task['_id']:task for task in generator}
+        if len(version_tasks) < 100:
+            continue
 
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':'foobar'})
-    df = task_data.dataframe(generator)
-    fig = generate_twocolor_timeline(df)
-    '''
-    fig.update_layout(title = 'foobar')
-    fig.show()
-    # cdn options reduce the size of the file by a couple of MB.
-    fig.write_html(OUT_HTML,include_plotlyjs='cdn',include_mathjax='cdn')
-    print('figure saved at {}'.format(OUT_HTML))
+        try:
+            slowdown, _  = metrics.DepGraph.display_version_slowdown(version_tasks)
+            slowdowns_by_version[version] = slowdown
+        except ValueError as e:
+            print(e)
+            continue
+        generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version]})
+        df = task_data.dataframe(generator)
+        print(df)
+        task = vorsions[version][0]
+        print(task)
+        fig = generate_twocolor_timeline(df,highlighted_task=task)
+        fig.update_layout(title = version)
+        fig.show()
+        # cdn options reduce the size of the file by a couple of MB.
+        out_html = './{}.html'.format(version)
+        fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
+        print('figure saved at {}'.format(out_html))
 
-
+    sorted_slowdowns_by_version  = dict(sorted(slowdowns_by_version.items(), key=lambda item: item[1]))
+    for version in sorted_slowdowns_by_version:
+        print('{}: {}'.format(sorted_slowdowns_by_version[version],version))
 
 if __name__ == '__main__':
     main()

@@ -114,10 +114,12 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                 task['unblocked_time'] = latest_finish
                 task['begin_wait'] = latest_finish
                 task['latency'] = task['finish_time'] - task['begin_wait']
+                task['wait_time'] = task['start_time'] - task['begin_wait']
                 return True
         #if we're here, didn't set 'unblocked_time'
         task['begin_wait'] = task['scheduled_time']
         task['latency'] = task['finish_time'] - task['begin_wait']
+        task['wait_time'] = task['start_time'] - task['begin_wait']
         return False
 
     @staticmethod
