@@ -29,7 +29,7 @@ def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
     return fig
 
 def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end='finish_time', sortby='scheduled_time', 
-        highlighted_task=None):
+        highlighted_tasks=None):
 
     df = df.sort_values(by=[sortby])
     df_copy = df.copy()
@@ -44,8 +44,9 @@ def generate_twocolor_timeline(df, start='begin_wait', middle='start_time', end=
 
     newdf = pd.concat([df, df_copy]).sort_values(by=[sortby], kind='merge')
 
-    if highlighted_task:
-        newdf.loc[newdf._id == highlighted_task, 'color'] = "highlighted"
+    if highlighted_tasks:
+        for task_id in highlighted_tasks:
+            newdf.loc[newdf._id == task_id, 'color'] = "highlighted"
 
     hoverdata = [start, end, 'distro', '_id']
     fig = px.timeline(newdf, x_start='start', x_end='end', color="color", hover_data=hoverdata)
@@ -184,10 +185,25 @@ def main():
             continue
         generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version]})
         df = task_data.dataframe(generator)
-        print(df)
-        task = vorsions[version][0]
-        print(task)
-        fig = generate_twocolor_timeline(df,highlighted_task=task)
+        
+        naughty_tasks_ids = vorsions[version]
+        highlighted_tasks = []
+        for task_id in naughty_tasks_ids:
+            distro = version_tasks[task_id]['distro']
+            #bad_distros = ['power8','zseries','macos','windows','perf']
+            bad_distros=[]
+            bad_distro = False
+            for bad in bad_distros:
+                if bad in distro:
+                    bad_distro = True
+            if bad_distro:
+                continue
+            else:
+                highlighted_tasks.append(task_id)
+        print()
+        print(highlighted_tasks)
+        print()
+        fig = generate_twocolor_timeline(df,highlighted_tasks=highlighted_tasks)
         fig.update_layout(title = version)
         fig.show()
         # cdn options reduce the size of the file by a couple of MB.
