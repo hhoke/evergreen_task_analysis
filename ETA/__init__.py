@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import datetime  
-import json                                                                                                                     
+import datetime
+import json
 import logging
-import pandas as pd                                                                                                             
+import pandas as pd
 
 def convert_ISO_to_datetime(time_str):
     '''convert standart ISO time in tasks DB to a datetime.datetime object'''
@@ -18,12 +18,12 @@ BEGINNING_OF_TIME = datetime.datetime(2000, 1, 1, 0, 0)
 class TaskTimes:
     ''' TaskTimes is a container for task dicts with time information.
 
-    Attributes 
+    Attributes
     ---
     time_fields: list of strings denoting acceptable time fields that all tasks have
 
     tasks: {_task_id:task_dict}
-    
+
     screen_by: modifier for the central tasks iterator. Default is none, should be set to a dict.
         TaskTime.get_tasks()  will screen out all tasks without the fields in screen_by.keys().
         If the value of a key in screen_by is empty, all field values are allowed in tasks.
@@ -32,7 +32,7 @@ class TaskTimes:
     Methods
     ---
     ingest_json: loads json from given filename, returns {_task_id:task_dict}
-    
+
     dataframe: returns pandas dataframe with one task per row and task attributes as columns
 
 
@@ -51,16 +51,16 @@ class TaskTimes:
     3
     >>> bins = TT.bin_tasks_by_field('distro')
     >>> for b in bins:
-    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b].values()])) 
+    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b].values()]))
     rhel62-large: ['compile', '2', '3']
     rhel62-small: ['1']
-    >>> TT.screen_by = {'distro': ['rhel62-small']} 
+    >>> TT.screen_by = {'distro': ['rhel62-small']}
     >>> for task in TT.get_tasks():
     ...     print(task['_id'])
     1
     >>> bins = TT.bin_tasks_by_field('distro')
     >>> for b in bins:
-    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b].values()])) 
+    ...     print('{}: {}'.format(b, [x['_id'] for x in bins[b].values()]))
     rhel62-small: ['1']
     '''
 
@@ -80,7 +80,7 @@ class TaskTimes:
             TODO: include some kind of schema validation for fields like 'depends_on'
             https://www.peterbe.com/plog/jsonschema-validate-10x-faster-in-python
         screen_by: modifier for the central tasks iterator.
-            
+
         '''
         self.time_fields = time_fields
         self.tasks = self.ingest_json(in_json)
@@ -93,36 +93,42 @@ class TaskTimes:
 
         tasks = {}
         for item in j:
-            _id = item['_id'] 
+            _id = item['_id']
             tasks[_id] = item
-        bad_ids=[]
+        bad_time_ids=[]
+        # remove display tasks from dependency graph
+        display_task_ids = []
         for _id in tasks:
+            if 'display_only' in tasks[_id] and tasks[_id]['display_only']:
+                display_task_ids.append(_id)
+                continue
             for field in self.time_fields:
                 field_string = tasks[_id][field]
                 field_ISO = convert_ISO_to_datetime(field_string)
                 if field_ISO < BEGINNING_OF_TIME :
                     # bad date, remove
-                    bad_ids.append(_id)
+                    bad_time_ids.append(_id)
                     break
                 tasks[_id][field] = field_ISO
-        if bad_ids:
+        if bad_time_ids:
             logging.debug("bad date, removing:")
+        logging.warning('{}/{} tasks had bad datetime values'.format(len(bad_time_ids),len(tasks)))
+        bad_ids = bad_time_ids + display_task_ids
+        logging.debug(bad_ids)
         for _id in bad_ids:
-            logging.debug(tasks[_id])
             del tasks[_id]
-        logging.warning('{}/{} tasks had bad datetime values'.format(len(bad_ids),len(tasks)))
 
         return tasks
 
     def dataframe(self, task_generator=None):
-        ''' this enables the return of the self.tasks dict in the form of a pandas 
+        ''' this enables the return of the self.tasks dict in the form of a pandas
         dataframe at any point in analysis, after tasks has been modified
         '''
         if not task_generator:
             task_generator = self.get_tasks()
         screened_tasks = list(task_generator)
         return pd.DataFrame(screened_tasks)
-    
+
     def get_tasks(self, adhoc_screen=None, mode='polite_merge'):
         ''' generator that returns tasks according to self.screen_by attribute of the form {str:[]}.
         get_tasks()  will screen out all tasks without the fields in screen_by.keys().
@@ -131,28 +137,28 @@ class TaskTimes:
 
         screen_modes:
         'substitute': adhoc_screen temporarily overrides default screen_by completely
-        'polite_merge': adhoc_screen is added to default screen_by. 
+        'polite_merge': adhoc_screen is added to default screen_by.
             For colliding keys, default takes precedence.
         'merge': adhoc_screen is added to default screen_by.
             For colliding keys, adhoc_screen takes precedence.
         '''
         if mode == 'polite_merge':
             if adhoc_screen and self.screen_by:
-                screen = { **adhoc_screen, **self.screen_by } 
+                screen = { **adhoc_screen, **self.screen_by }
             elif adhoc_screen:
                 screen = adhoc_screen
             else:
                 screen = self.screen_by
         elif mode == 'merge':
             if adhoc_screen and self.screen_by:
-                screen = { **self.screen_by, **adhoc_screen} 
+                screen = { **self.screen_by, **adhoc_screen}
             elif adhoc_screen:
                 screen = adhoc_screen
             else:
                 screen = self.screen_by
         elif mode == 'substitute':
             if adhoc_screen:
-                screen = adhoc_screen  
+                screen = adhoc_screen
             else:
                 screen = self.screen_by
         else:
@@ -161,7 +167,7 @@ class TaskTimes:
         if not self.tasks:
             logging.error('tasks list is empty, check input json')
         for _id in self.tasks:
-            task = self.tasks[_id] 
+            task = self.tasks[_id]
             invalid_field = False
             if screen:
                 for field in screen:
@@ -183,22 +189,22 @@ class TaskTimes:
             logging.warning(task)
 
     def bin_tasks_by_field(self, field, values=None, task_generator=None):
-        ''' instead of simply filtering tasks using a built in screen_by, 
+        ''' instead of simply filtering tasks using a built in screen_by,
         returns tasks binned by allowed values of a given field.'''
         if not task_generator:
             task_generator = self.get_tasks()
         tasks = {}
-        if values:  
+        if values:
             tasks = {x:{} for x in values}
         for task in task_generator:
             if values:
                 if task[field] in values:
-                   tasks[task[field]][task['_id']] = task
+                    tasks[task[field]][task['_id']] = task
             else:
                 if task[field] in tasks:
-                   tasks[task[field]][task['_id']] = task
+                    tasks[task[field]][task['_id']] = task
                 else:
-                   tasks[task[field]] = {task['_id']:task}
+                    tasks[task[field]] = {task['_id']:task}
         return tasks
 
 def _test():

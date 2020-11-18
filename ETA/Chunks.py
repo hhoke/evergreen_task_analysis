@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import bisect
-import datetime  
+import datetime
 
 # stolen from https://docs.python.org/3/library/bisect.html
 
@@ -18,14 +18,14 @@ def _find_ge(a, x):
     if i != len(a):
         return a[i]
     raise ValueError
- 
+
 
 class ChunkTimes:
-    ''' ChunkTimes automatically creates a list of evenly-spaced datetime.datetime objects, 
+    ''' ChunkTimes automatically creates a list of evenly-spaced datetime.datetime objects,
         strictly increasing,
         starting with begin_time,
         ending at or after end_time, before end_time + chunk.
-        
+
         Attributes
         ---
         chunk is a datetime.timedelta object
@@ -49,22 +49,22 @@ class ChunkTimes:
 
         index_tasks_before_chunktime(self, tasks, time_field='finish_time')
 
-            Takes in a list of tasks. 
+            Takes in a list of tasks.
             Returns chunks dict where tasks are stored under a chunktime fencepost value
             iff they fall before or at the fencepost value, but after the previous fencepost value
             for all time t such that t0 < t <= t1, t is in list d[t1] where d is the returned dictionary
-            The time used is specified with the time_field key, 
+            The time used is specified with the time_field key,
             as long as the value of that key is a datetime.datetime field in the task.
 
             all task times must be later than the first fencepost in chunk_list and earlier than the last.
 
-            >>> tasks = [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}, 
+            >>> tasks = [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)},
             ...         {'finish_time': datetime.datetime(1999, 12, 31, 22, 0)},
             ...         {'finish_time': datetime.datetime(1999, 12, 31, 18, 0)}]
-            >>> too_early_tasks = [{'finish_time': datetime.datetime(1999, 12, 30, 20, 0)}, 
+            >>> too_early_tasks = [{'finish_time': datetime.datetime(1999, 12, 30, 20, 0)},
             ...         {'finish_time': datetime.datetime(1999, 12, 31, 22, 0)},
             ...         {'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}]
-            >>> too_late_tasks = [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}, 
+            >>> too_late_tasks = [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)},
             ...         {'finish_time': datetime.datetime(1999, 12, 31, 22, 0)},
             ...         {'finish_time': datetime.datetime(2001, 12, 31, 20, 0)}]
             >>> working_chunks = willenium.index_tasks_before_chunktime(tasks)
@@ -77,7 +77,7 @@ class ChunkTimes:
             [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}, {'finish_time': datetime.datetime(1999, 12, 31, 18, 0)}]
             2000-01-01 00:00:00
             [{'finish_time': datetime.datetime(1999, 12, 31, 22, 0)}]
-            >>> try: 
+            >>> try:
             ...    f = willenium.index_tasks_before_chunktime(too_late_tasks)
             ... except ValueError:
             ...     pass
@@ -85,7 +85,7 @@ class ChunkTimes:
             ...     print('should have failed')
             ...     print(f)
 
-            >>> try: 
+            >>> try:
             ...    f = willenium.index_tasks_before_chunktime(too_early_tasks)
             ... except ValueError:
             ...     pass
@@ -93,12 +93,12 @@ class ChunkTimes:
             ...     print('should have failed')
             ...     print(f)
 
-       
+
         index_tasks_after_chunktime(self, tasks, time_field='finish_time')
             returns chunks dict where tasks are stored under a chunktime fencepost value
             iff they fall at or after the fencepost value, but before the previous fencepost value
             for all time t such that t1 <= t < t2, t is in list d[t1] where d is the returned dictionary.
-            The time used is specified with the time_field key, 
+            The time used is specified with the time_field key,
             as long as the value of that key is a datetime.datetime field in the task
             >>> working_chunks = willenium.index_tasks_after_chunktime(tasks)
             >>> for item in working_chunks:
@@ -110,7 +110,7 @@ class ChunkTimes:
             [{'finish_time': datetime.datetime(1999, 12, 31, 20, 0)}, {'finish_time': datetime.datetime(1999, 12, 31, 22, 0)}]
             2000-01-01 00:00:00
             []
-            >>> try: 
+            >>> try:
             ...    f = willenium.index_tasks_after_chunktime(too_early_tasks)
             ... except ValueError:
             ...     pass
@@ -118,7 +118,7 @@ class ChunkTimes:
             ...     print('should have failed')
             ...     print(f)
 
-            >>> try: 
+            >>> try:
             ...    f = willenium.index_tasks_after_chunktime(too_late_tasks)
             ... except ValueError:
             ...     pass
@@ -129,7 +129,7 @@ class ChunkTimes:
         '''
 
     def __init__(self, begin_time, end_time, chunk=datetime.timedelta(minutes=5)):
-        ''' ChunkTimes provides a list of evenly-spaced datetime.datetime objects, 
+        ''' ChunkTimes provides a list of evenly-spaced datetime.datetime objects,
         strictly increasing,
         starting with begin_time,
         ending at or after end_time, before end_time + chunk.
@@ -147,16 +147,16 @@ class ChunkTimes:
         current_chunk = begin_time
         while current_chunk < end_time + self.chunk:
             self.chunk_list.append(current_chunk)
-            current_chunk += self.chunk 
+            current_chunk += self.chunk
         # modify end time
         self.end_time = self.chunk_list[-1]
 
     def index_tasks_before_chunktime(self, tasks, time_field='finish_time'):
-        ''' Takes in a list of tasks. 
+        ''' Takes in a list of tasks.
         Returns chunks dict where tasks are stored under a chunktime fencepost value
         iff they fall before or at the fencepost value, but after the previous fencepost value
         for all time t such that t0 < t <= t1, t is in list d[t1] where d is the returned dictionary.
-        The time used is specified with the time_field key, 
+        The time used is specified with the time_field key,
         as long as the value of that key is a datetime.datetime field in the task.
 
         All task times must be later than the first fencepost in chunk_list and earlier than the last.
@@ -168,7 +168,7 @@ class ChunkTimes:
         ''' returns chunks dict where tasks are stored under a chunktime fencepost value
         iff they fall at or after the fencepost value, but before the previous fencepost value
         for all time t such that t1 <= t < t2, t is in list d[t1] where d is the returned dictionary.
-        The time used is specified with the time_field key, 
+        The time used is specified with the time_field key,
         as long as the value of that key is a datetime.datetime field in the task.
 
         All task times must be later than the first fencepost in chunk_list and earlier than the last.
@@ -178,7 +178,7 @@ class ChunkTimes:
 
     def index_task_on_chunktime(self, tasks, start='start_time', end='finish_time'):
         ''' returns chunks dict where count of tasks is stored under a chunktime fencepost value
-        for count of tasks active during the fencepost value, that is if the fencepost value is 
+        for count of tasks active during the fencepost value, that is if the fencepost value is
         between start and end. The value of that key is a datetime.datetime field in the task.
         tasks is an iterable of task dicts.
 
@@ -201,7 +201,7 @@ class ChunkTimes:
 
     def index_task_on_chunktime_search(self, tasks, start='start_time', end='finish_time'):
         ''' returns chunks dict where count of tasks is stored under a chunktime fencepost value
-        for count of tasks active during the fencepost value, that is if the fencepost value is 
+        for count of tasks active during the fencepost value, that is if the fencepost value is
         between start and end. The value of that key is a datetime.datetime field in the task.
         tasks is an iterable of task dicts.
 
@@ -225,7 +225,7 @@ class ChunkTimes:
 
     def _fencepost_assigner_generator(self, find_fencepost):
         '''find_fencepost should be a function that takes a list and a value,
-        and returns a value from the list. 
+        and returns a value from the list.
         This curries that into a general fencepost assignment function.
         #TODO: remove unneeded closure'''
         def f(self, tasks, time_field):
@@ -259,7 +259,7 @@ def chunked_mean_slowdown(time_chunked_tasks):
         perfect_world_latency_sum = datetime.timedelta(0)
         for task in tasks:
             latency_sum += task['finish_time'] - task['create_time']
-            perfect_world_latency_sum += task['perfect_world_latency'] 
+            perfect_world_latency_sum += task['perfect_world_latency']
         slowdowns[chunk] = latency_sum / perfect_world_latency_sum
     return slowdowns
 
