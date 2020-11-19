@@ -190,8 +190,8 @@ def main():
         highlighted_tasks = []
         for task_id in naughty_tasks_ids:
             distro = version_tasks[task_id]['distro']
-            #bad_distros = ['power8','zseries','macos','windows','perf']
-            bad_distros=[]
+            bad_distros = ['power8','zseries','macos','windows','perf']
+            #bad_distros=[]
             bad_distro = False
             for bad in bad_distros:
                 if bad in distro:
