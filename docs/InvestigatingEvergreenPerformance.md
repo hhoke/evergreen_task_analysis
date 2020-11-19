@@ -187,7 +187,7 @@ You can look at the relevant [burst stats dash output](https://evergreen-task-an
 Note the choppy pattern in the host count caused by these intermittent reapings. It takes time to recover by allocating and provisioning new hosts, and performance is affected, but not nearly as badly as when a host cap is reached.
 
 Here is an even more clear example of this choppy pattern:
-<iframe id="HostTerminations" scrolling="no" style="border:none;" seamless="seamless" src="https://evergreen-task-analysis.s3.us-east-2.amazonaws.com/HostTerminations.png" height="944" width="630"></iframe>
+<iframe id="HostTerminations" scrolling="no" style="border:none;" seamless="seamless" src="https://evergreen-task-analysis.s3.us-east-2.amazonaws.com/HostTerminations.png"></iframe>
 
 See if you can guess when the hosts were reaped just by looking at the gantt chart above! Answer hidden below:
 
