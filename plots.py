@@ -12,15 +12,18 @@ import metrics
 
 logging.basicConfig(level=logging.INFO)
 #OUT_HTML = './foobar.html'
-IN_JSON = './cruisin.json'
+IN_JSON = './reapingExample.json'
 
 ##
 # gantt
-def generate_timeline(df, start='scheduled_time', end='finish_time', y=None):
+def generate_timeline_colored(df, start='begin_wait', end='finish_time', y=None, colorby=None):
+    df = df.sort_values(by=['scheduled_time'])
+    if colorby:
+        df['color'] = colorby
     if not y:
         fig = px.timeline(df, x_start=start, x_end=end)
     else:
-        fig = px.timeline(df, x_start=start, x_end=end, y=y)
+        fig = px.timeline(df, x_start=start, x_end=end, y=y, color='color')
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -78,23 +81,23 @@ def generate_chunked_running_task_count(task_list, chunk_times):
 ##
 # histogram
 
-def generate_hist_raw_wait_time(task_data):
+def generate_hist_raw_wait_time(generator):
     ''' returns histogram of wait times'''
-    return generate_hist(task_data, 'raw_wait_time','scheduled_time','start_time')
+    return generate_hist(generator, 'raw_wait_time','scheduled_time','start_time')
 
-def generate_hist_corrected_wait_time(task_data):
+def generate_hist_corrected_wait_time(generator):
     ''' returns histogram of wait times, corrected for dependencies'''
-    return generate_hist(task_data, 'corrected_wait_time','begin_wait','start_time')
+    return generate_hist(generator, 'corrected_wait_time','begin_wait','start_time')
 
-def generate_hist_turnaround_time(task_data):
+def generate_hist_turnaround_time(generator):
     ''' returns histogram of turnaround times'''
-    return generate_hist(task_data, 'turnaround_time','scheduled_time','finish_time')
+    return generate_hist(generator, 'turnaround_time','scheduled_time','finish_time')
 
-def generate_hist_blocked_time(task_data):
+def generate_hist_blocked_time(generator):
     ''' returns histogram of blocked times'''
-    return generate_hist(task_data,'blocked_time','scheduled_time','unblocked_time')
+    return generate_hist(generator,'blocked_time','scheduled_time','unblocked_time')
 
-def generate_hist(task_data, title, start_key, end_key):
+def generate_hist(generator, title, start_key, end_key):
     ''' boilerplate function that generates a histogram of some time interval
     from internal task dict.
     title is the title of the x axis, must be string
@@ -109,7 +112,7 @@ def generate_hist(task_data, title, start_key, end_key):
     first_time = True
     title = title + '(hours)'
     over_count = 0
-    for task in task_data.get_tasks({start_key:[],end_key:[]}):
+    for task in generator:
         time_delta = task[end_key] - task[start_key]
         seconds_in_minute = 60
         minutes_in_hour = 60
@@ -141,11 +144,14 @@ def main():
                     ]
 
     task_data = metrics.DepWaitTaskTimes(IN_JSON,time_fields)
-    start = datetime.datetime(2020, 10, 14, 12, 0)
-    end = datetime.datetime(2020, 10, 15, 8, 0)
-    chunk = datetime.timedelta(minutes=5)
-    chunk_times = chunks.ChunkTimes(start, end, chunk)
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
+    start = datetime.datetime(2020, 10, 9, 0, 45)
+    filtered_gen = filter(lambda task: start < task['begin_wait'],generator)
+    df = task_data.dataframe(filtered_gen)
+    fig = generate_twocolor_timeline(df, sortby='finish_time')
+    fig.show()
+    fig.write_html('reapingExample.html',include_plotlyjs='cdn',include_mathjax='cdn')
+    exit()
     task_list = list(generator)
     task_list = [task for task in task_list if task['wait_time'] > datetime.timedelta(hours=1)]
     versions = []

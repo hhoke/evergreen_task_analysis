@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'cruisin.json'
+IN_JSON = 'nineHour.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -47,7 +47,6 @@ class DepWaitTaskTimes(ETA.TaskTimes):
         for task in self.get_tasks():
             # calculate begin_wait and update task with field
             self.update_task_unblocked_time(task)
-
     ##
     # calculate additional fields and return value
 
