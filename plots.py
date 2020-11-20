@@ -148,7 +148,7 @@ def main():
     start = datetime.datetime(2020, 10, 9, 0, 45)
     filtered_gen = filter(lambda task: start < task['begin_wait'],generator)
     df = task_data.dataframe(filtered_gen)
-    fig = generate_twocolor_timeline(df, sortby='finish_time')
+    fig = generate_twocolor_timeline(df)
     fig.show()
     fig.write_html('reapingExample.html',include_plotlyjs='cdn',include_mathjax='cdn')
     exit()
