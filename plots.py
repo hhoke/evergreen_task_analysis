@@ -16,14 +16,16 @@ IN_JSON = './reapingExample.json'
 
 ##
 # gantt
-def generate_timeline_colored(df, start='begin_wait', end='finish_time', y=None, colorby=None):
-    df = df.sort_values(by=['scheduled_time'])
-    if colorby:
-        df['color'] = colorby
+def generate_timeline_colored(df, start='begin_wait', end='start_time', y='default_rank', colorby=None,sortby=None):
+    if sortby:
+        print(df)
+        df = df.sort_values(by=[sortby],ignore_index=True)
+        df['default_rank'] = df['start_time'].rank()
+        print(df)
     if not y:
-        fig = px.timeline(df, x_start=start, x_end=end)
+        fig = px.timeline(df, x_start=start, x_end=end, color=colorby)
     else:
-        fig = px.timeline(df, x_start=start, x_end=end, y=y, color='color')
+        fig = px.timeline(df, x_start=start, x_end=end, y=y, color=colorby)
     fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up
     fig.update_layout({
     'plot_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -145,12 +147,11 @@ def main():
 
     task_data = metrics.DepWaitTaskTimes(IN_JSON,time_fields)
     generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
-    start = datetime.datetime(2020, 10, 9, 0, 45)
-    filtered_gen = filter(lambda task: start < task['begin_wait'],generator)
-    df = task_data.dataframe(filtered_gen)
-    fig = generate_twocolor_timeline(df)
+    df = task_data.dataframe(generator)
+    fig = generate_timeline_colored(df,colorby='version',sortby='start_time')
+    fig.update_layout(title = 'corrected wait times, rhel76-small')
     fig.show()
-    fig.write_html('reapingExample.html',include_plotlyjs='cdn',include_mathjax='cdn')
+    fig.write_html('colorByVersion.html',include_plotlyjs='cdn',include_mathjax='cdn')
     exit()
     task_list = list(generator)
     task_list = [task for task in task_list if task['wait_time'] > datetime.timedelta(hours=1)]
