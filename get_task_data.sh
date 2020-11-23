@@ -32,7 +32,7 @@ DB_HOST=evergreendb-1.10gen-mci.4085.mongodbdns.com
 JS_FILE=get_tasks.js
 
 SCP_FILE='/tmp/result.json'
-OUT_FILE=reapingExample_stepback.json
+OUT_FILE=mms_412125d044d0c4f3f80c795d1e173cdc075154b6.json
 
 run_aggregation "$DB_HOST" "$JS_FILE" "$SCP_FILE"
 clean_results $(basename "$SCP_FILE") "$OUT_FILE"
