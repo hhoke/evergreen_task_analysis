@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'nineHour.json'
+IN_JSON = 'reapingExample_stepback.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
@@ -507,7 +507,21 @@ def main():
                     ]
 
     task_data = DepWaitTaskTimes(IN_JSON, time_fields)
-    task_data.display_slowdown_by_version()
-
+    generator = task_data.get_tasks({'distro':['rhel76-small']})
+    tasks_by_version = task_data.bin_tasks_by_field('version', task_generator=generator)
+    versions_count = {}
+    for version in tasks_by_version:
+        print()
+        print(version)
+        count = 0 
+        for task_id in tasks_by_version[version]:
+            task = tasks_by_version[version][task_id]
+            print(task)
+            if task['activated_by'] == 'stepback':
+                count += 1
+        versions_count[version] = count
+    highest_counts_last = dict(sorted(versions_count.items(), key=lambda item: item[1]))
+    for version in highest_counts_last:
+        print('{}: {}'.format(versions_count[version],version))
 if __name__ == '__main__':
     main()
