@@ -6,6 +6,7 @@ Contains some basic methods for visualizing dependency graphs and so on, useful 
 Contains methods for displaying these statistics in simple, text-only format.
 For more visually pleasing figures, see plots.py.
 '''
+import copy
 import datetime
 import logging
 import igraph
@@ -104,7 +105,10 @@ class DepWaitTaskTimes(ETA.TaskTimes):
                     finish_time = self.tasks[task_id]['finish_time']
                 else:
                     # incomplete information
-                    logging.debug('incomplete info')
+                    logging.debug('incomplete info: {}'.format(task_id))
+                    if task['_id'] == 'mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_sharding_auth_audit_gen_a013b58aa9770fe637518fe896393546aaed294e_20_10_14_20_27_39':
+                        print('incomplete info: {}'.format(task_id))
+                        exit()
                     return False
                 if finish_time and latest_finish < finish_time and finish_time < task['start_time']:
                     latest_finish = finish_time
@@ -372,13 +376,14 @@ class DepGraph:
         return p
 
     @classmethod
-    def display_version_slowdown(cls, tasks):
+    def display_version_slowdown(cls, _tasks, zero_task_ids=None):
         ''' calculates slowdown across version by finding the time a version would have taken
         if every task started as soon as its dependencies were met
         (or as soon as it was scheduled, if no dependencies exist.)
         This assumes task runtime would be the same.
         '''
         # make implicit dependency of generated on generator explicit
+        tasks = copy.deepcopy(_tasks) # want to be free to mung with impunity
         generator_tasks = {}
         for task_id in tasks:
             if 'begin_wait' not in tasks[task_id]:
@@ -393,6 +398,8 @@ class DepGraph:
         for task_id in generator_tasks:
             dummy_id = task_id + '_dummygen'
             if task_id not in tasks:
+                for task in tasks:
+                    print(tasks[task])
                 raise ValueError('incomplete task list. Dependency does not appear in task list: {}'.format(task_id))
             dummy_task = tasks[task_id].copy()
             dummy_task['finish_time'] = dummy_task['start_time']
@@ -403,6 +410,11 @@ class DepGraph:
             for dependent_id in generator_tasks[task_id]:
                 if tasks[dependent_id]['depends_on']:
                     tasks[dependent_id]['depends_on'].append(dummy_dependency)
+
+        # zero out requested tasks
+        if zero_task_ids:
+            for _id in zero_task_ids:
+                tasks[_id]['begin_wait'] = tasks[_id]['start_time']
 
         # determine all vertices with outdegree 0 and indegree 0
         task_ids_with_incoming_edges = set()
@@ -516,7 +528,6 @@ def main():
         count = 0 
         for task_id in tasks_by_version[version]:
             task = tasks_by_version[version][task_id]
-            print(task)
             if task['activated_by'] == 'stepback':
                 count += 1
         versions_count[version] = count

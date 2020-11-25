@@ -10,9 +10,9 @@ import pandas as pd
 import ETA.Chunks as chunks
 import metrics
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 #OUT_HTML = './foobar.html'
-IN_JSON = './nineHour.json'
+IN_JSON = './cruisin.json'
 
 ##
 # gantt
@@ -145,13 +145,12 @@ def main():
                     ]
 
     task_data = metrics.DepWaitTaskTimes(IN_JSON,time_fields)
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
-    df = task_data.dataframe(generator)
-    fig = generate_timeline_colored(df,colorby='version',sortby='start_time')
-    fig.update_layout(title = 'corrected wait times, rhel76-small')
-    fig.show()
-    fig.write_html('colorByVersion_chunked.html',include_plotlyjs='cdn',include_mathjax='cdn')
-    exit()
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel62-large']})
+    #df = task_data.dataframe(generator)
+    #fig = generate_timeline_colored(df,colorby='version',sortby='start_time')
+    #fig.update_layout(title = 'corrected wait times, rhel62-large')
+    #fig.show()
+    #fig.write_html('colorByVersion_chunked_cruisin.html',include_plotlyjs='cdn',include_mathjax='cdn')
     task_list = list(generator)
     task_list = [task for task in task_list if task['wait_time'] > datetime.timedelta(hours=1)]
     versions = []
@@ -163,7 +162,6 @@ def main():
         else: 
             vorsions[task['version']].append(task['_id'])
 
-    print(vorsions)
     print(len(task_list))
 
     generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
@@ -176,6 +174,24 @@ def main():
    
     print(len(versions))
     slowdowns_by_version = {}
+    zeroed_slowdowns_by_version = {}
+    
+    version = "mongodb_mongo_master_a013b58aa9770fe637518fe896393546aaed294e"
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version]})
+    version_tasks = {task['_id']:task for task in generator}
+    test_id = 'mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_sharding_auth_audit_gen_a013b58aa9770fe637518fe896393546aaed294e_20_10_14_20_27_39'
+    if test_id in version_tasks:
+        print('wut')
+    else:
+        print('nah')
+
+    generator = task_data.get_tasks()
+    version_tasks = {task['_id']:task for task in generator}
+    test_id = 'mongodb_mongo_master_enterprise_rhel_62_64_bit_dynamic_required_sharding_auth_audit_gen_a013b58aa9770fe637518fe896393546aaed294e_20_10_14_20_27_39'
+    if test_id in version_tasks:
+        print('yuh')
+        print(version_tasks[test_id])
+
     for version in versions:
     
         generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version]})
@@ -183,16 +199,22 @@ def main():
         if len(version_tasks) < 100:
             continue
 
+        #naughty_tasks_ids = vorsions[version]
+        generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version],'distro':['rhel62-large']})
+        naughty_tasks_ids = [task['_id'] for task in generator]
+
         try:
             slowdown, _  = metrics.DepGraph.display_version_slowdown(version_tasks)
             slowdowns_by_version[version] = slowdown
+            zeroed_slowdown, _  = metrics.DepGraph.display_version_slowdown(version_tasks, naughty_tasks_ids)
+            zeroed_slowdowns_by_version[version] = zeroed_slowdown
         except ValueError as e:
             print(e)
             continue
         generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version]})
         df = task_data.dataframe(generator)
         
-        naughty_tasks_ids = vorsions[version]
+
         highlighted_tasks = []
         for task_id in naughty_tasks_ids:
             distro = version_tasks[task_id]['distro']
@@ -206,20 +228,19 @@ def main():
                 continue
             else:
                 highlighted_tasks.append(task_id)
-        print()
-        print(highlighted_tasks)
-        print()
-        fig = generate_twocolor_timeline(df,highlighted_tasks=highlighted_tasks)
-        fig.update_layout(title = version)
-        fig.show()
-        # cdn options reduce the size of the file by a couple of MB.
-        out_html = './{}.html'.format(version)
-        fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
-        print('figure saved at {}'.format(out_html))
+
+        #fig = generate_twocolor_timeline(df,highlighted_tasks=highlighted_tasks)
+        #fig.update_layout(title = version)
+        #fig.show()
+        ## cdn options reduce the size of the file by a couple of MB.
+        #out_html = './{}.html'.format(version)
+        #fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
+        #print('figure saved at {}'.format(out_html))
 
     sorted_slowdowns_by_version  = dict(sorted(slowdowns_by_version.items(), key=lambda item: item[1]))
     for version in sorted_slowdowns_by_version:
         print('{}: {}'.format(sorted_slowdowns_by_version[version],version))
+        print('{}: zeroed'.format(zeroed_slowdowns_by_version[version]))
 
 if __name__ == '__main__':
     main()
