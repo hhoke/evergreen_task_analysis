@@ -199,9 +199,7 @@ def main():
         if len(version_tasks) < 100:
             continue
 
-        #naughty_tasks_ids = vorsions[version]
-        generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version],'distro':['rhel62-large']})
-        naughty_tasks_ids = [task['_id'] for task in generator]
+        naughty_tasks_ids = vorsions[version]
 
         try:
             slowdown, _  = metrics.DepGraph.display_version_slowdown(version_tasks)
