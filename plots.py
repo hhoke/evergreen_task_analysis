@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-#OUT_HTML = './foobar.html'
-IN_JSON = './cruisin.json'
+OUT_HTML = './rhel76-small_20210103.html'
+IN_JSON = './rhel76-small_20210103.json'
 
 ##
 # gantt
@@ -136,17 +136,17 @@ def main():
                     ]
 
     task_data = metrics.DepWaitTaskTimes(IN_JSON,time_fields)
-    start = datetime.datetime(2020, 10, 14, 12, 0)
-    end = datetime.datetime(2020, 10, 15, 8, 0)
-    chunk = datetime.timedelta(minutes=5)
-    chunk_times = chunks.ChunkTimes(start, end, chunk)
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel62-large']})
-    task_list = list(generator)
-    task_list = [task for task in task_list if task['latency'] > datetime.timedelta(hours=1)]
-    versions = []
-    for task in task_list:
-        if task['version'] not in versions:
-            versions.append(task['version'])
+    #start = datetime.datetime(2020, 10, 14, 12, 0)
+    #end = datetime.datetime(2020, 10, 15, 8, 0)
+    #chunk = datetime.timedelta(minutes=5)
+    #chunk_times = chunks.ChunkTimes(start, end, chunk)
+    #generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel62-large']})
+    #task_list = list(generator)
+    #task_list = [task for task in task_list if task['latency'] > datetime.timedelta(hours=1)]
+    #versions = []
+    #for task in task_list:
+    #    if task['version'] not in versions:
+    #        versions.append(task['version'])
 
     generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
     task_list = list(generator)
@@ -156,6 +156,13 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
    
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
+    df = task_data.dataframe(generator)
+    fig = generate_twocolor_timeline(df)
+    fig.update_layout(title = 'rhel76-small_20210103')
+    out_html = OUT_HTML
+    fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
+    exit()
     print(len(versions))
     for version in versions:
         generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'version':[version]})
