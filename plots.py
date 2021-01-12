@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './rhel62_feedbacktest.html'
-IN_JSON = './rhel62_feedbacktest.json'
+OUT_HTML = './rhel62_feedbacktest_control.html'
+IN_JSON = './rhel62_feedbacktest_control.json'
 
 ##
 # gantt
@@ -159,7 +159,7 @@ def main():
         task['finish_time'] += datetime.timedelta(0,22)
 
     fig = generate_hist_corrected_wait_time(task_data, {'distro':['rhel62-small']})
-    fig.update_layout(title = 'rhel62_feedbacktest')
+    fig.update_layout(title = 'rhel62_feedbacktest_control')
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     out_html = OUT_HTML
