@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './rhel62_feedbacktest_control2.html'
-IN_JSON = './rhel62_feedbacktest_control2.json'
+OUT_HTML = './rhel76_feedbacktest.html'
+IN_JSON = './rhel76_feedbacktest.json'
 
 ##
 # gantt
@@ -140,15 +140,7 @@ def main():
                     'start_time',
                     'finish_time',
                     ]
-    print('ayy')
     task_data = metrics.DepWaitTaskTimes(IN_JSON,time_fields)
-    print('lmao')
-    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel62-small']})
-    task_list = list(generator)
-    task_list = [task for task in task_list if task['latency'] > datetime.timedelta(hours=1)]
-    print()
-    print(len(task_list))
-    print()
 
     generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[]})
     task_list = list(generator)
@@ -158,8 +150,11 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    fig = generate_hist_corrected_wait_time(task_data, {'distro':['rhel62-small']})
-    fig.update_layout(title = 'rhel62_feedbacktest_control2')
+
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
+    df = task_data.dataframe(generator)
+    fig = generate_twocolor_timeline(df)
+    fig.update_layout(title = 'rhel76_feedbacktest')
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     out_html = OUT_HTML
