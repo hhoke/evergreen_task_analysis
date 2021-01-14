@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './ubuntu1804-arm64-large_spotScarcity.html'
-IN_JSON = './ubuntu1804-arm64-large_spotScarcity.json'
+OUT_HTML = './rhel76_feedbacktest.html'
+IN_JSON = './rhel76_feedbacktest.json'
 
 ##
 # gantt
@@ -150,8 +150,11 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    fig = generate_hist_corrected_wait_time(task_data, {'distro':['ubuntu1804-arm64-large']})
-    fig.update_layout(title = 'ubuntu1804-arm64-large')
+
+    generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
+    df = task_data.dataframe(generator)
+    fig = generate_twocolor_timeline(df)
+    fig.update_layout(title = 'rhel76_feedbacktest')
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     out_html = OUT_HTML
