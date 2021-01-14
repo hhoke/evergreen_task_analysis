@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './rhel76_feedbacktest.html'
-IN_JSON = './rhel76_feedbacktest.json'
+OUT_HTML = './rhel76_minHostTest.html'
+IN_JSON = './rhel76_minHostTest.json'
 
 ##
 # gantt
@@ -154,7 +154,7 @@ def main():
     generator = task_data.get_tasks({'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
     df = task_data.dataframe(generator)
     fig = generate_twocolor_timeline(df)
-    fig.update_layout(title = 'rhel76_feedbacktest')
+    fig.update_layout(title = 'rhel76_minHostTest')
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     out_html = OUT_HTML
