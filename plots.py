@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './ubuntu1804-arm64-large_spotScarcity.html'
-IN_JSON = './ubuntu1804-arm64-large_spotScarcity.json'
+OUT_HTML = './ubuntu1804-arm64-large_spotScarcity_onDemand.html'
+IN_JSON = './ubuntu1804-arm64-large_spotScarcity_onDemand.json'
 
 ##
 # gantt
@@ -151,7 +151,7 @@ def main():
         task['finish_time'] += datetime.timedelta(0,22)
 
     fig = generate_hist_corrected_wait_time(task_data, {'distro':['ubuntu1804-arm64-large']})
-    fig.update_layout(title = 'ubuntu1804-arm64-large')
+    fig.update_layout(title = 'ubuntu1804-arm64-large_onDemand')
     fig.show()
     # cdn options reduce the size of the file by a couple of MB.
     out_html = OUT_HTML
