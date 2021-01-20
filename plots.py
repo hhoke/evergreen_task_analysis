@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './ubuntu1804-arm64-large_spotScarcity_onDemand2.html'
-IN_JSON = './ubuntu1804-arm64-large_spotScarcity_onDemand2.json'
+OUT_HTML = './rhel76_feedbacktest.html'
+IN_JSON = './rhel76_taskGroup.json'
 
 ##
 # gantt
@@ -110,6 +110,7 @@ def generate_hist(task_data, title, start_key, end_key, additional_filters= None
     filter_dict = {start_key:[],end_key:[]}
     if additional_filters:
         filter_dict.update(additional_filters)
+    task_groups = set()
     for task in task_data.get_tasks(filter_dict):
         time_delta = task[end_key] - task[start_key]
         seconds_in_minute = 60
@@ -120,8 +121,9 @@ def generate_hist(task_data, title, start_key, end_key, additional_filters= None
         total += time_delta
         total_count += 1
         if time_delta_hour >= 1:
-            logging.info(task["_id"])
-            logging.info(task["version"])
+            #logging.info(task["_id"])
+            #logging.info(task["version"])
+            task_groups.add(task["task_group"])
             over_count +=1
         if first_time:
             worst = {time_delta_hour:task}
@@ -132,6 +134,8 @@ def generate_hist(task_data, title, start_key, end_key, additional_filters= None
     fig = px.histogram(df, x=title)
     logging.info(total_hours/total_count)
     logging.info(over_count)
+    for group in task_groups:
+        logging.info(group)
     return fig
 
 def main():
@@ -150,13 +154,15 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    fig = generate_hist_corrected_wait_time(task_data, {'distro':['ubuntu1804-arm64-large']})
-    fig.update_layout(title = 'ubuntu1804-arm64-large_onDemand2')
-    fig.show()
-    # cdn options reduce the size of the file by a couple of MB.
-    out_html = OUT_HTML
-    fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
-    print('figure saved at {}'.format(out_html))
+    generate_hist_corrected_wait_time(task_data, additional_filters={'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
+    #df = task_data.dataframe(generator)
+    #fig = generate_twocolor_timeline(df)
+    #fig.update_layout(title = 'rhel76_feedbacktest')
+    #fig.show()
+    ## cdn options reduce the size of the file by a couple of MB.
+    #out_html = OUT_HTML
+    #fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
+    #print('figure saved at {}'.format(out_html))
 
 if __name__ == '__main__':
     main()
