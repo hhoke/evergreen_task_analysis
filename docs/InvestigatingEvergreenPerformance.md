@@ -223,7 +223,7 @@ Glossary
 --- 
 
 **Version**: patch build or mainline commit build / waterfall
-<iframe id="Task-Terms" scrolling="no" style="border:none;" seamless="seamless" src="https://evergreen-task-analysis.s3.us-east-2.amazonaws.com/task-intervals.svg" height="525" width="100%"></iframe>
+<iframe id="Task-Terms" scrolling="no" style="border:none;" seamless="seamless" src="https://evergreen-task-analysis.s3.us-east-2.amazonaws.com/task-intervals-2.svg" height="525" width="100%"></iframe>
 
 <b id="Glossary"></b>Return to Case Studies[↩](#gantt-intro)
 

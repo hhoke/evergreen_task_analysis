@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './rhel76_feedbacktest.html'
-IN_JSON = './rhel76_taskGroup.json'
+OUT_HTML = './cruisin-no-task-groups-hist.html'
+IN_JSON = './cruisin-no-task-groups.json'
 
 ##
 # gantt
