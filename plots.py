@@ -154,7 +154,7 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    generate_hist_corrected_wait_time(task_data, additional_filters={'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
+    generate_hist_corrected_wait_time(task_data, additional_filters={'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel62-large']})
     #df = task_data.dataframe(generator)
     #fig = generate_twocolor_timeline(df)
     #fig.update_layout(title = 'rhel76_feedbacktest')
