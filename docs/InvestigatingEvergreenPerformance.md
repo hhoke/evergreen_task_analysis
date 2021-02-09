@@ -2,6 +2,8 @@
 
 Evergreen runs over 100,000 tasks per day. We aggregate task data in many ways -- by aggregating task statistics directly, or by constructing statistics based on the structure of versions (patch or waterfall). Similarly, we can break down summary statistics by distro, distro state, time of day, task priority, and so on. In order to get a representative picture of evergreen performance, we're going to have to look at vignettes from multiple scales and vantage points.
 
+EDIT 2021-02-09: This represents much of the rationale and findings from post-hoc analysis using code in this repo. This report compiles findings from a period of several months, and for a variety of reasons, I have moved away from a large-report format to a bulletin format. In a sense this can be seen as the first evergreen bulletin, though the first bulletin in the per-epic format is [here](https://hhoke.github.io/evergreen_task_analysis/2021-01-11.html)
+
 ## Metrics
 
 ### Aggregate Task Statistics
@@ -23,21 +25,21 @@ So, I almost never use this, as it is an over-estimate of task wait time.
 
 #### Corrected Task Wait
 
-There is an obvious correction to the above problem: use `unblocked_time` instead of `scheduled_time`:
+There is an obvious correction to the above problem: use `dep_met_time` instead of `scheduled_time`:
 ```
-unblocked_time := max(dependency_finish_times)
-begin_wait := max(scheduled_time, unblocked_time)
+dep_met_time := max(dependency_finish_times)
+begin_wait := max(scheduled_time, dep_met_time)
 wait_time := start_time - begin_wait
 ```
-However, this has its own problem: when a task has been sitting in the queue while blocked, this may cause it to be weighted higher and therefore run faster than if it had been submitted without dependencies at `unblocked_time`. 
+However, this has its own problem: when a task has been sitting in the queue while blocked, this may cause it to be weighted higher and therefore run faster than if it had been submitted without dependencies at `dep_met_time`. 
 As such, this may be a slight under-estimate of task wait time. 
 However, we can be sure it is not an over-estimate.
 This is currently what I use to evaluate task and distro performance, so much so that I have begun to refer to it as `wait_time` and the naive approach as `uncorrected_wait_time`.
-This metric also has the bonus of decoupling distro performance from one another. To clarify, often a performant distro such as rhel62-small will have tasks that depend on tasks from poorly-performing distros such as rhel67-zseries-large. This situation would no longer affect rhel62-small if we take the `unblocked_time` into consideration.
-
-(Note: at one point `unblocked_time` was computed in evergreen, however this created performance problems and the functionality was removed)
+This metric also has the bonus of decoupling distro performance from one another. To clarify, often a performant distro such as rhel62-small will have tasks that depend on tasks from poorly-performing distros such as rhel67-zseries-large. This situation would no longer affect rhel62-small if we take the `dep_met_time` into consideration.
 
 Corrected task wait is calculated automatically by the core task data ingestion engine used by both `metrics.py` and `plots.py`, and stored under the `begin_wait` field in each task dictionary.
+
+This functionality has been added to evergreen with [this PR](https://github.com/evergreen-ci/evergreen/pull/4351), and is currently in use in the [Evergreen Task Start Wait Times SLAs dash](https://mongodb.splunkcloud.com/en-US/app/search/unblocked_task_metrics?form.unused=aws&form.timeselector.earliest=rt-1h&form.timeselector.latest=rt).
 
 #### Lies, Damn Lies, and Task Summary Statistics 
 
@@ -114,7 +116,7 @@ However, I have not built up enough experience working with this metric, and ref
 
 ### splunk dashboards
 
-I use the [Burst Stats Dashboard](https://mongodb.splunkcloud.com/en-US/app/search/burst_stats?form.distro=rhel76-small&form.time.earliest=1603026000&form.time.latest=1603112400) to investigate poorly-performing distros, ususally on the scale of around a day. The top of the board gives you information about host creation dynamics, while the middle of the board contains information about tasks and task queues. The bottom of the board contains potential causes of poor performance.
+I use the [Distro performance stats dash](https://mongodb.splunkcloud.com/en-US/app/search/burst_stats?form.distro=rhel76-small&form.time.earliest=1603026000&form.time.latest=1603112400) to investigate poorly-performing distros, usually on the scale of around a day. The top of the board gives you information about host creation dynamics, while the middle of the board contains information about tasks and task queues. The bottom of the board contains potential causes of poor performance.
 
 ### plots
 These plots can all be generated using `plots.py`.
@@ -142,11 +144,11 @@ At just over 6000 hosts, we got the following error from AWS:
 ```
 "You have exceeded your maximum gp2 storage limit of 1746 TiB in this region. Please contact AWS Support to request an Elastic Block Store service limit increase."
 ```
-As the message says, this is a soft limit that can be increased simply by contacting AWS support.
+As the message says, this is a soft limit that can be increased simply by contacting AWS support. This is easy to do, see [BUILD-12560](https://jira.mongodb.org/browse/BUILD-12560).
 
 The load on logkeeper and the amount of EBS storage used clearly depends on the particular jobs and distros running. However, we now have rough estimates on the limits of scaling and have instituted rough checks to protect evergreen from becoming unstable as the number of hosts becomes too large. 
 
-Currently, max total dynamic hosts is set at 5000, in order to prevent logkeeper errors. Logkeeper is slowly being phased out. Once it is completely removed, we plan to conduct further tests to understand the particular settings and conditions that constrain Evergreen scaling. We expect to be able to easily scale past 6000 hosts, but have yet to identify the next set of constraints.
+Currently, max total dynamic hosts is set at 5500, in order to prevent logkeeper errors. Logkeeper is slowly being phased out. Once it is completely removed, we plan to conduct further tests to understand the particular settings and conditions that constrain Evergreen scaling. We expect to be able to easily scale past 6000 hosts, but have yet to identify the next set of constraints.
 
 ### Distro Performance 
 
@@ -155,12 +157,12 @@ Currently, max total dynamic hosts is set at 5000, in order to prevent logkeeper
 If Evergreen was a car, this case would analogous to driving it in first gear on the interstate.
 
 This is a gantt chart of all tasks from rhel62-large from UTC noon, August 4th, 2020, to UTC 8AM, August 5th.
-This and all other gantt charts consist of tasks ordered from top to bottom by `scheduled_time`. There are two bars per task, as described below in the <a id="gantt-intro">[\[Glossary\]](#Glossary)</a>, but they are not visile as distinct bars in this image due to the number of tasks.
+This and all other gantt charts consist of tasks ordered from top to bottom by `scheduled_time`. There are two bars per task, as described below in the <a id="gantt-intro">[\[Glossary\]](#Glossary)</a>, but they are not visible as distinct bars in this image due to the number of tasks.
 
 The frame below is not interactive, due to its size. 
 <iframe id="Totaled" scrolling="no" style="border:none;" seamless="seamless" src="https://evergreen-task-analysis.s3.us-east-2.amazonaws.com/totaled.png" height="944" width="630"></iframe>
 
-As you can see above, 2,970 tasks waited for greater than eight hourse before they began. The above figure somewhat overstates this, due to visualization artefacts caused by the number of tasks.
+As you can see above, 2,970 tasks waited for greater than eight hours before they began. The above figure somewhat overstates this, due to visualization artefacts caused by the number of tasks.
 
 The average wait time for this period was roughly 39 minutes, with 19,714 tasks waiting for more than an hour, about 14.6% of the total.
 
@@ -211,13 +213,13 @@ The average wait time for this period was roughly four and a half minutes, with 
 
 [burst stats dash output]("https://evergreen-task-analysis.s3.us-east-2.amazonaws.com/rhel62-Oct142020-cruisin.pdf")
 
-It is still an open question [why this long tail exists](https://jira.mongodb.org/browse/EVG-13058).
+Preliminary evidence suggests that 96% of the tasks with over one hour wait in this histogram were associated with a task group [Provenance](https://github.com/hhoke/evergreen_task_analysis/tree/c373319dee2f2f350e22612db3781347e9f0dad1). Similar exclusion cleared up extreme 99%ile values on the SLA dash. As of 2021-02-09 this is no longer considered an open question.
 
 However, we can investigate the impact of some of these jobs on their versions using the slowdown metric discussed above.
 
 ### Version Performance
 
-TODO, I need a better handle on interpreting the effect of particular tasks on the slowdown metric, see "Constructing a Slowdown Metric for Evergreen" above.
+A potential improvement is getting a better handle on interpreting the effect of particular tasks on the slowdown metric, see "Constructing a Slowdown Metric for Evergreen" above.
 
 Glossary
 --- 
