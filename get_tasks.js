@@ -11,3 +11,4 @@ return db.tasks.aggregate([
 var x = problemChild().toArray();
 printjson(x)
 //{$match: {distro: 'rhel62-small' }},
+//{$match: {task_group_max_hosts: null }},

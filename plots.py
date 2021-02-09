@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './cruisin-no-task-groups-hist.html'
-IN_JSON = './cruisin-no-task-groups.json'
+OUT_HTML = './cruisin-redux.html'
+IN_JSON = './cruisin-redux2.json'
 
 ##
 # gantt
@@ -110,7 +110,7 @@ def generate_hist(task_data, title, start_key, end_key, additional_filters= None
     filter_dict = {start_key:[],end_key:[]}
     if additional_filters:
         filter_dict.update(additional_filters)
-    task_groups = set()
+    task_groups = {}
     for task in task_data.get_tasks(filter_dict):
         time_delta = task[end_key] - task[start_key]
         seconds_in_minute = 60
@@ -123,7 +123,8 @@ def generate_hist(task_data, title, start_key, end_key, additional_filters= None
         if time_delta_hour >= 1:
             #logging.info(task["_id"])
             #logging.info(task["version"])
-            task_groups.add(task["task_group"])
+            #tg = task_groups.setdefault(task["task_group"],0)
+            #task_groups[task["task_group"]] = tg + 1
             over_count +=1
         if first_time:
             worst = {time_delta_hour:task}
@@ -136,6 +137,7 @@ def generate_hist(task_data, title, start_key, end_key, additional_filters= None
     logging.info(over_count)
     for group in task_groups:
         logging.info(group)
+        logging.info(task_groups[group])
     return fig
 
 def main():
