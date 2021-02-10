@@ -12,7 +12,7 @@ import metrics
 
 logging.basicConfig(level=logging.INFO)
 OUT_HTML = './cruisin-redux.html'
-IN_JSON = './cruisin-redux2.json'
+IN_JSON = './SLA-check.json'
 
 ##
 # gantt
@@ -115,8 +115,10 @@ def generate_hist(task_data, title, start_key, end_key, additional_filters= None
         time_delta = task[end_key] - task[start_key]
         seconds_in_minute = 60
         minutes_in_hour = 60
-        time_delta_hour = (time_delta.seconds / seconds_in_minute) / minutes_in_hour
-        finish_times.append({title:time_delta_hour})
+        time_delta_minute = time_delta.seconds / seconds_in_minute
+        time_delta_hour = time_delta_minute / minutes_in_hour
+        #finish_times.append({title:time_delta_hour})
+        finish_times.append({title:time_delta_minute})
         total_hours += time_delta_hour
         total += time_delta
         total_count += 1
@@ -132,12 +134,12 @@ def generate_hist(task_data, title, start_key, end_key, additional_filters= None
         if time_delta_hour > next(iter(worst)):
             worst = {time_delta_hour:task}
     df = pd.DataFrame(finish_times)
+    print(df.quantile())
     fig = px.histogram(df, x=title)
     logging.info(total_hours/total_count)
+    logging.info(60*total_hours/total_count)
+    print(total_count)
     logging.info(over_count)
-    for group in task_groups:
-        logging.info(group)
-        logging.info(task_groups[group])
     return fig
 
 def main():
@@ -156,8 +158,7 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    generate_hist_corrected_wait_time(task_data, additional_filters={'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel62-large']})
-    #df = task_data.dataframe(generator)
+    generate_hist_corrected_wait_time(task_data, additional_filters={'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel62-large'], 'r':['patch_request'],'task_group_max_hosts':[0]})
     #fig = generate_twocolor_timeline(df)
     #fig.update_layout(title = 'rhel76_feedbacktest')
     #fig.show()
