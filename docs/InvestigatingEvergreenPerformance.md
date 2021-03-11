@@ -13,7 +13,8 @@ Aggregate task statistics can be especially useful when comparing the performanc
 #### Naive Task Wait
 
 We can easily visualize task wait in splunk in a variety of ways, as with the following query:
-[index=evergreen stat=task-end-stats distro=rhel76-small | eval hours = (total_wait_secs / 60 ) / 60 | timechart span=5m max(hours) avg(hours)](https://mongodb.splunkcloud.com/en-US/app/search/search?earliest=1603026000&latest=1603112400&sid=_aGFycmlzLmhva2U_aGFycmlzLmhva2U__search__search6_1603302737.252704&q=search%20index%3Devergreen%20stat%3Dtask-end-stats%20distro%3Drhel76-small%20%7C%20eval%20hours%20%3D%20(total_wait_secs%20%2F%2060%20)%20%2F%2060%20%7C%20timechart%20span%3D5m%20max(hours)%20avg(hours)&display.page.search.mode=fast&dispatch.sample_ratio=1&display.general.type=statistics)
+
+`index=evergreen stat=task-end-stats distro=rhel76-small | eval hours = (total_wait_secs / 60 ) / 60 | timechart span=5m max(hours) avg(hours)`
 
 The metric that is used in the splunk link is defined something like this:
 ```
@@ -116,7 +117,7 @@ However, I have not built up enough experience working with this metric, and ref
 
 ### splunk dashboards
 
-I use the [Distro performance stats dash](https://mongodb.splunkcloud.com/en-US/app/search/burst_stats?form.distro=rhel76-small&form.time.earliest=1603026000&form.time.latest=1603112400) to investigate poorly-performing distros, usually on the scale of around a day. The top of the board gives you information about host creation dynamics, while the middle of the board contains information about tasks and task queues. The bottom of the board contains potential causes of poor performance.
+I use the [Distro performance stats dash](https://mongodb.splunkcloud.com/en-US/app/search/burst_stats?form.distro=rhel76-small&form.time.earliest=%40d&form.time.latest=now) to investigate poorly-performing distros, usually on the scale of around a day. The top of the board gives you information about host creation dynamics, while the middle of the board contains information about tasks and task queues. The bottom of the board contains potential causes of poor performance.
 
 ### plots
 These plots can all be generated using `plots.py`.
