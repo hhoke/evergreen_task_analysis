@@ -24,11 +24,15 @@ def active_tasks_during_time(json_fname, time_point):
 first_event = datetime.datetime(2021, 4, 26, 19, 8, 00, 564000)
 second_event = datetime.datetime(2021, 4, 28, 1, 42, 00, 564000)
 third_event = datetime.datetime(2021, 4, 29, 2, 49, 00, 564000)
+fourth_event = datetime.datetime(2021, 5, 4, 1, 00, 00, 564000)
 
 active_during_first_event = active_tasks_during_time("./firstElectionTasks.json", first_event)
 active_during_second_event = active_tasks_during_time("./secondElectionTasks.json", second_event)
 active_during_third_event = active_tasks_during_time("./thirdElectionTasks.json", third_event)
+active_during_fourth_event = active_tasks_during_time("./fourthElectionTasks.json", fourth_event)
 
 first_two_intersect = active_during_second_event.intersection(active_during_first_event)
 all_three_intersect = first_two_intersect.intersection(active_during_third_event)
-print(all_three_intersect)
+all_four_intersect = all_three_intersect.intersection(active_during_fourth_event)
+print(all_four_intersect)
+print(len(all_four_intersect))
