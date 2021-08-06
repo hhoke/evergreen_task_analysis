@@ -27,12 +27,12 @@ function clean_results {
 }
 
 # make sure db_host is not a primary!
-DB_HOST=evergreendb-1.10gen-mci.4085.mongodbdns.com
+DB_HOST=evergreendb-2.10gen-mci.4085.mongodbdns.com
 # should be as relative as possible to ease remote execution
 JS_FILE=get_tasks.js
 
 SCP_FILE='/tmp/result.json'
-OUT_FILE=rhel76_taskGroup.json
+OUT_FILE=mongodb_mongo_master_enterprise_windows_all_feature_flags_suggested_b46c44c41849606ade03f8a9238aa6ea800bb87a_21_08_06_18_35_46.json
 
 run_aggregation "$DB_HOST" "$JS_FILE" "$SCP_FILE"
 clean_results $(basename "$SCP_FILE") "$OUT_FILE"

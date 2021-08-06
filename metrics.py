@@ -15,7 +15,7 @@ import numpy as np
 import ETA
 
 logging.basicConfig(level=logging.INFO)
-IN_JSON = 'cruisin.json'
+IN_JSON = 'mongodb_mongo_master_enterprise_windows_all_feature_flags_suggested_b46c44c41849606ade03f8a9238aa6ea800bb87a_21_08_06_18_35_46.json'
 
 class DepWaitTaskTimes(ETA.TaskTimes):
     '''
