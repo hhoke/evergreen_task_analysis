@@ -1,4 +1,5 @@
 This is a collection of scripts used to analyze task performance data from evergreen's database.
+[use `put` with `use_sudo`](www.example.com)
 
 ## Current workflow:
 
