@@ -4,7 +4,7 @@ This is a collection of scripts used to analyze task performance data from everg
 ### typical workflow:
 
 - Make sure you sign into VPN, and check out a new branch at the start of your investigation, ideally named after an EVG ticket. 
-- Modify `get_tasks.js` to contain the desired query. If you wish, you may include the word "foobar" in a field such as the distro field to make it easer to rapidly generate figures or calculate and display metrics.
+- Modify `get_tasks.js` to contain the desired query. If you wish, you may include the word "foobar" in a field such as the distro field to make it easier to rapidly generate figures or calculate and display metrics.
 - Modify the main function of either `metrics.py` or `plots.py` to produce the plot or metric you desire. 
 - run the scripts, for example:
 
