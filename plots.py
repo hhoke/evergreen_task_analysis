@@ -11,8 +11,8 @@ import ETA.Chunks as chunks
 import metrics
 
 logging.basicConfig(level=logging.INFO)
-OUT_HTML = './rhel76_feedbacktest.html'
-IN_JSON = './rhel76_taskGroup.json'
+OUT_HTML = './mongodb_mongo_master_enterprise_windows_all_feature_flags_suggested_b46c44c41849606ade03f8a9238aa6ea800bb87a_21_08_06_18_35_46.html'
+IN_JSON = './mongodb_mongo_master_enterprise_windows_all_feature_flags_suggested_b46c44c41849606ade03f8a9238aa6ea800bb87a_21_08_06_18_35_46.json'
 
 ##
 # gantt
@@ -154,15 +154,15 @@ def main():
         task['start_time'] += datetime.timedelta(0,11)
         task['finish_time'] += datetime.timedelta(0,22)
 
-    generate_hist_corrected_wait_time(task_data, additional_filters={'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
-    #df = task_data.dataframe(generator)
-    #fig = generate_twocolor_timeline(df)
-    #fig.update_layout(title = 'rhel76_feedbacktest')
-    #fig.show()
-    ## cdn options reduce the size of the file by a couple of MB.
-    #out_html = OUT_HTML
-    #fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
-    #print('figure saved at {}'.format(out_html))
+    #generate_hist_corrected_wait_time(task_data, additional_filters={'begin_wait':[],'start_time':[],'finish_time':[],'distro':['rhel76-small']})
+    df = task_data.dataframe(generator)
+    fig = generate_twocolor_timeline(df)
+    fig.update_layout(title = 'mongodb_mongo_master_enterprise_windows_all_feature_flags_suggested_b46c44c41849606ade03f8a9238aa6ea800bb87a_21_08_06_18_35_46 build')
+    fig.show()
+    # cdn options reduce the size of the file by a couple of MB.
+    out_html = OUT_HTML
+    fig.write_html(out_html,include_plotlyjs='cdn',include_mathjax='cdn')
+    print('figure saved at {}'.format(out_html))
 
 if __name__ == '__main__':
     main()
